@@ -1,0 +1,48 @@
+<div class="scene">
+  <div class="cube" [class]="cubeClass()">
+    <!-- Front -->
+    <div class="cube__face cube__face--front">
+      @if(teams()[0]) {
+        <div class="flex flex-col items-center justify-center">
+          <i [attr.data-lucide]="teams()[0].logo" class="w-10 h-10"></i>
+          <span class="text-xs font-bold mt-1">{{ teams()[0].name }}</span>
+        </div>
+      }
+    </div>
+    <!-- Back -->
+    <div class="cube__face cube__face--back">
+      @if(teams()[2]) {
+        <div class="flex flex-col items-center justify-center">
+          <i [attr.data-lucide]="teams()[2].logo" class="w-10 h-10"></i>
+          <span class="text-xs font-bold mt-1">{{ teams()[2].name }}</span>
+        </div>
+      }
+    </div>
+    <!-- Right -->
+    <div class="cube__face cube__face--right">
+      @if(teams()[1]) {
+        <div class="flex flex-col items-center justify-center">
+          <i [attr.data-lucide]="teams()[1].logo" class="w-10 h-10"></i>
+          <span class="text-xs font-bold mt-1">{{ teams()[1].name }}</span>
+        </div>
+      }
+    </div>
+    <!-- Left -->
+    <div class="cube__face cube__face--left">
+       @if(teams()[3]) {
+        <div class="flex flex-col items-center justify-center">
+          <i [attr.data-lucide]="teams()[3].logo" class="w-10 h-10"></i>
+          <span class="text-xs font-bold mt-1">{{ teams()[3].name }}</span>
+        </div>
+      }
+    </div>
+    <!-- Top -->
+    <div class="cube__face cube__face--top">
+       <i data-lucide="swords" class="w-12 h-12 text-gray-500"></i>
+    </div>
+    <!-- Bottom -->
+    <div class="cube__face cube__face--bottom">
+       <i data-lucide="shield" class="w-12 h-12 text-gray-500"></i>
+    </div>
+  </div>
+</div>
