@@ -1,622 +1,545 @@
 <div class="min-h-screen w-full flex flex-col p-4 sm:p-6 lg:p-8 bg-gray-900 text-gray-100">
-
-  @switch (auctionService.auctionState()) {
-    @case ('login') {
-      <div class="m-auto flex flex-col items-center justify-center w-full max-w-2xl">
-        <div class="flex items-center space-x-4 mb-8">
-          <i data-lucide="swords" class="w-12 h-12 sm:w-16 sm:h-16 text-red-500"></i>
-          <i data-lucide="shield" class="w-12 h-12 sm:w-16 sm:h-16 text-yellow-500"></i>
-          <h1 class="text-4xl sm:text-5xl font-bold tracking-tighter text-center">Hyva Premier League Auction 2026</h1>
+  <div class="w-full max-w-7xl mx-auto">
+    @switch (auctionService.auctionState()) {
+      @case ('login') {
+        <div class="m-auto flex flex-col items-center justify-center w-full max-w-2xl text-center">
+          <h1 class="text-4xl sm:text-5xl font-extrabold my-4 text-white w-full max-w-2xl">
+            Hyva Premier League Auction 2026
+          </h1>
         </div>
-        <div class="w-full bg-gray-800 p-8 rounded-2xl shadow-2xl border border-gray-700">
-          <h2 class="text-2xl font-semibold mb-6 text-center">Login</h2>
-          <form (ngSubmit)="onLogin()" class="space-y-6">
-            <div>
-              <label for="username" class="block text-sm font-medium text-gray-400">Username</label>
-              <input id="username" type="text" [(ngModel)]="loginUsername" name="username" class="mt-1 block w-full bg-gray-700 border border-gray-600 rounded-md shadow-sm py-2 px-3 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="admin or team name">
+
+        <div class="bg-gray-800 p-6 sm:p-8 rounded-2xl shadow-2xl w-full max-w-md mt-4 mx-auto">
+          <h2 class="text-2xl font-bold mb-6 text-center text-gray-100">Auction Login</h2>
+          <form (ngSubmit)="onLogin()">
+            <div class="mb-4">
+              <label for="username" class="block text-sm font-medium text-gray-300 mb-1">Username</label>
+              <input type="text" id="username" name="username" [(ngModel)]="loginUsername"
+                class="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-gray-100 focus:ring-blue-500 focus:border-blue-500 transition duration-200"
+                placeholder="Enter username">
             </div>
-            <div>
-              <label for="password" class="block text-sm font-medium text-gray-400">Password</label>
-              <input id="password" type="password" [(ngModel)]="loginPassword" name="password" class="mt-1 block w-full bg-gray-700 border border-gray-600 rounded-md shadow-sm py-2 px-3 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="password">
+            <div class="mb-6">
+              <label for="password" class="block text-sm font-medium text-gray-300 mb-1">Password</label>
+              <input type="password" id="password" name="password" [(ngModel)]="loginPassword"
+                class="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-gray-100 focus:ring-blue-500 focus:border-blue-500 transition duration-200"
+                placeholder="Enter password">
             </div>
             @if(auctionService.errorMessage()) {
-              <p class="text-red-500 text-sm">{{ auctionService.errorMessage() }}</p>
+              <div class="text-red-400 text-center text-sm mb-4" role="alert">
+                {{ auctionService.errorMessage() }}
+              </div>
             }
-            <button type="submit" class="w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 focus:ring-offset-gray-800 transition-colors">
-              Sign In
-            </button>
-            <div class="relative flex py-2 items-center">
-                <div class="flex-grow border-t border-gray-600"></div>
-                <span class="flex-shrink mx-4 text-gray-500 text-xs">OR</span>
-                <div class="flex-grow border-t border-gray-600"></div>
-            </div>
-             <button type="button" (click)="onEnterPublicView()" class="w-full flex justify-center py-3 px-4 border border-gray-600 rounded-md shadow-sm text-sm font-medium text-white bg-gray-600 hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 focus:ring-offset-gray-800 transition-colors">
-              Watch Auction Live
+            <button type="submit"
+              class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg transition duration-300 text-lg flex items-center justify-center">
+              <i data-lucide="log-in" class="w-5 h-5 mr-2"></i> Login
             </button>
           </form>
-        </div>
-      </div>
-    }
-
-    @case ('public_view') {
-      <div class="w-full">
-        <h1 class="text-3xl sm:text-4xl font-bold tracking-tight text-center mb-6">Hyva Premier League Auction 2026</h1>
-        <!-- Public Header -->
-        <header class="bg-gray-800 rounded-xl p-4 flex justify-between items-center mb-6 shadow-lg border border-gray-700">
-          <div>
-            <h2 class="text-2xl font-bold tracking-tight">Spectator View</h2>
-            <p class="text-gray-400">Round <span class="font-bold text-white">{{ auctionService.currentRound() }}</span> of {{ auctionService.MAX_ROUNDS }}</p>
+          <div class="flex items-center my-6">
+            <hr class="flex-grow border-gray-600">
+            <span class="mx-4 text-gray-400">or</span>
+            <hr class="flex-grow border-gray-600">
           </div>
-          <button (click)="onReturnToLogin()" class="flex items-center space-x-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg transition-colors">
-            <i data-lucide="log-in" class="w-4 h-4"></i>
-            <span>Back to Login</span>
+          <button (click)="onEnterPublicView()"
+            class="w-full bg-gray-600 hover:bg-gray-700 text-white font-bold py-3 px-4 rounded-lg transition duration-300 text-lg flex items-center justify-center">
+            <i data-lucide="eye" class="w-5 h-5 mr-2"></i> Watch Auction Live
           </button>
-        </header>
+        </div>
+      }
 
-        <!-- Main Content -->
-        <main class="grid grid-cols-1 lg:grid-cols-3 gap-8 flex-grow">
-          <!-- Left: Auction Status & Teams -->
-          <div class="lg:col-span-1 space-y-8">
-              <!-- Auction Status Panel -->
-              <div class="bg-gray-800 p-6 rounded-2xl shadow-lg border border-gray-700">
-                <h2 class="text-xl font-semibold mb-4 text-center">Auction Status</h2>
-                <div class="flex flex-col items-center space-y-4">
-                    <app-dice />
-                     <div class="w-full space-y-2 mt-4">
-                        <h3 class="text-lg font-semibold text-center text-gray-300">Round {{ auctionService.currentRound() }} Pick Order</h3>
-                        @if (auctionService.roundOrder().length > 0) {
-                          @for(team of auctionService.roundOrder(); track team.id; let i = $index) {
-                              <div class="flex items-center justify-between p-2 rounded-lg transition-colors" [class.bg-yellow-500/20]="i === auctionService.turnIndex() && !auctionService.isRoundCompleted()" [class.bg-gray-700]="i !== auctionService.turnIndex() || auctionService.isRoundCompleted()">
-                                  <div class="flex items-center space-x-2">
-                                      <span class="font-bold text-gray-400">{{ i + 1 }}.</span>
-                                      <span [class.text-gray-500]="i < auctionService.turnIndex()" [class.line-through]="i < auctionService.turnIndex()">{{ team.name }}</span>
-                                  </div>
-                                  @if (i < auctionService.turnIndex()) {
-                                      <i data-lucide="check-circle-2" class="w-5 h-5 text-green-500"></i>
-                                  }
-                                  @if (i === auctionService.turnIndex() && !auctionService.isRoundCompleted()) {
-                                      <span class="text-xs font-bold text-yellow-400 animate-pulse">PICKING</span>
-                                  }
-                              </div>
-                          }
-                        } @else {
-                            <p class="text-gray-500 text-sm italic text-center py-4">Waiting for auction to start...</p>
-                        }
-                    </div>
-                </div>
-              </div>
-          </div>
+      @case ('admin_lobby') {
+        <!-- Main Header -->
+        <div class="flex items-center justify-center mb-4 text-center">
+          <h1 class="text-3xl sm:text-4xl font-extrabold text-white">
+            Hyva Premier League Auction 2026
+          </h1>
+        </div>
 
-          <!-- Middle: Available Players -->
-          <div class="bg-gray-800 p-6 rounded-2xl shadow-lg border border-gray-700 lg:col-span-1">
-            <h2 class="text-xl font-semibold mb-4">Available Players ({{ auctionService.availablePlayers().length }})</h2>
-            <div class="space-y-3 h-[70vh] overflow-y-auto pr-2">
-              @for (player of auctionService.availablePlayers(); track player.id) {
-                <div class="bg-gray-700 p-3 rounded-lg flex justify-between items-center">
-                  <div>
-                    <p class="font-bold">{{ player.name }}</p>
-                    <p class="text-sm" [class]="getRoleColor(player.role)">{{ player.role }}</p>
-                  </div>
-                </div>
-              } @empty {
-                <p class="text-gray-400 text-center mt-8">No players available.</p>
-              }
-            </div>
-          </div>
-          
-          <!-- Right: Team Rosters -->
-          <div class="lg:col-span-1 space-y-6 h-[85vh] overflow-y-auto pr-2">
-            @for (team of auctionService.teams(); track team.id) {
-              <div class="bg-gray-800 p-4 rounded-2xl shadow-lg border border-gray-700 transition-all duration-300" [class.border-yellow-400]="auctionService.pickingTeam()?.id === team.id" [class.shadow-yellow-400/20]="auctionService.pickingTeam()?.id === team.id">
-                <div class="flex items-center space-x-3 mb-3 pb-2 border-b border-gray-700">
-                    <span class="p-2 rounded-full" [class]="team.color"><i [attr.data-lucide]="team.logo" class="w-6 h-6"></i></span>
-                    <div>
-                      <div class="flex items-center gap-2">
-                        <h3 class="text-lg font-bold">{{ team.name }}</h3>
-                        @if(team.captainRole) {
-                          <span class="text-xs font-semibold px-2 py-0.5 rounded-full" [class]="getCaptainRoleColor(team.captainRole)">{{ team.captainRole }}</span>
-                        }
-                      </div>
-                      <p class="text-sm text-gray-400">{{ team.owner }}</p>
-                    </div>
-                </div>
-                <div class="space-y-2">
-                    @for(player of team.players; track player.id) {
-                        <div class="bg-gray-700/50 px-3 py-1.5 rounded-md text-sm flex justify-between">
-                            <div class="flex items-center">
-                              <span>{{ player.name }}</span>
-                            </div>
-                            <span class="font-mono text-xs opacity-70">{{player.role}}</span>
-                        </div>
-                    }
-                    @if(team.players.length === 0) {
-                        <p class="text-xs text-gray-500 text-center italic py-2">No players drafted yet.</p>
-                    }
-                </div>
-              </div>
-            }
-             @if(auctionService.teams().length === 0) {
-                <p class="text-gray-500 text-center italic py-8">No teams have been created yet.</p>
-             }
-          </div>
-        </main>
-      </div>
-    }
-
-    @case ('admin_lobby') {
-      <div class="w-full">
-        <h1 class="text-3xl sm:text-4xl font-bold tracking-tight text-center mb-6">Hyva Premier League Auction 2026</h1>
-        <!-- Lobby Header -->
-        <header class="bg-gray-800 rounded-xl p-4 flex justify-between items-center mb-6 shadow-lg border border-gray-700">
-          <div>
-            <h2 class="text-2xl font-bold tracking-tight">Admin Lobby</h2>
-            <p class="text-gray-400">Prepare your teams and players before starting the auction.</p>
-          </div>
-          <button (click)="auctionService.logout()" class="flex items-center space-x-2 bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg transition-colors">
-            <i data-lucide="log-out" class="w-4 h-4"></i>
+        <!-- Sub Header -->
+        <div class="bg-gray-800 rounded-lg shadow-lg p-3 mb-6 flex items-center justify-between">
+          <h2 class="text-xl sm:text-2xl font-bold text-gray-100">Admin Lobby</h2>
+          <button (click)="auctionService.logout()"
+            class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg transition duration-200 flex items-center">
+            <i data-lucide="log-out" class="w-4 h-4 mr-2"></i>
             <span>Logout</span>
           </button>
-        </header>
+        </div>
 
-        <!-- Main Content -->
-        <main class="grid grid-cols-1 lg:grid-cols-3 gap-8 flex-grow">
+        <!-- Main Content Grid -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          
           <!-- Column 1: Team Management -->
-          <div class="space-y-8 flex flex-col">
-            <!-- Create Team Panel -->
-            <div class="bg-gray-800 p-6 rounded-2xl shadow-lg border border-gray-700">
-              <h2 class="text-xl font-semibold mb-4">Create Team Owner</h2>
+          <div class="bg-gray-800 rounded-lg p-6 shadow-md flex flex-col gap-6">
+            <!-- Create Team Owner -->
+            <div class="bg-gray-700/50 p-4 rounded-lg">
+              <h3 class="text-lg font-semibold mb-4 text-gray-200 border-b border-gray-600 pb-2">Create Team Owner</h3>
               <form (ngSubmit)="onCreateTeam()" class="space-y-4">
-                  <input type="text" [(ngModel)]="newTeamName" name="newTeamName" placeholder="Team Name" class="w-full bg-gray-700 border-gray-600 rounded-md py-2 px-3 focus:ring-indigo-500">
-                  <input type="text" [(ngModel)]="newOwnerName" name="newOwnerName" placeholder="Owner Name" class="w-full bg-gray-700 border-gray-600 rounded-md py-2 px-3 focus:ring-indigo-500">
-                  <input type="text" [(ngModel)]="newUsername" name="newUsername" placeholder="Username" class="w-full bg-gray-700 border-gray-600 rounded-md py-2 px-3 focus:ring-indigo-500">
-                  <input type="password" [(ngModel)]="newPassword" name="newPassword" placeholder="Password" class="w-full bg-gray-700 border-gray-600 rounded-md py-2 px-3 focus:ring-indigo-500">
-                  
-                  <div>
-                    <label for="captainRole" class="block text-sm font-medium text-gray-400 mb-1">Captain Role</label>
-                    <select id="captainRole" [(ngModel)]="newTeamCaptainRole" name="newTeamCaptainRole" class="w-full bg-gray-700 border-gray-600 rounded-md py-2 px-3 focus:ring-indigo-500">
-                        <option value="Staff">Staff</option>
-                        <option value="Technician">Technician</option>
+                <input type="text" [(ngModel)]="newTeamName" name="newTeamName" placeholder="Team Name" class="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded-md text-gray-100 placeholder-gray-400 focus:ring-blue-500 focus:border-blue-500" required>
+                <input type="text" [(ngModel)]="newOwnerName" name="newOwnerName" placeholder="Owner Name" class="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded-md text-gray-100 placeholder-gray-400 focus:ring-blue-500 focus:border-blue-500" required>
+                <input type="text" [(ngModel)]="newUsername" name="newUsername" placeholder="Login Username" class="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded-md text-gray-100 placeholder-gray-400 focus:ring-blue-500 focus:border-blue-500" required>
+                <input type="password" [(ngModel)]="newPassword" name="newPassword" placeholder="Login Password" class="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded-md text-gray-100 placeholder-gray-400 focus:ring-blue-500 focus:border-blue-500" required>
+                 <div>
+                    <label class="block text-sm font-medium text-gray-300 mb-1">Captain Role</label>
+                    <select [(ngModel)]="newTeamCaptainRole" name="newTeamCaptainRole" class="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded-md text-gray-100 focus:ring-blue-500 focus:border-blue-500">
+                      <option value="Staff">Staff</option>
+                      <option value="Technician">Technician</option>
                     </select>
                   </div>
-
-                  <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg">Create</button>
+                <button type="submit" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg flex items-center justify-center transition duration-200">
+                  <i data-lucide="plus-circle" class="w-5 h-5 mr-2"></i> Create Team
+                </button>
               </form>
             </div>
-            <!-- Manage Teams Panel -->
-            <div class="bg-gray-800 p-6 rounded-2xl shadow-lg border border-gray-700 flex-grow">
-              <h2 class="text-xl font-semibold mb-4">Manage Teams</h2>
-              <div class="space-y-4 max-h-[40vh] overflow-y-auto pr-2">
-                  @for (team of auctionService.teams(); track team.id) {
-                      @if (editingTeam()?.id === team.id) {
-                          <!-- Edit Mode -->
-                          <div class="bg-gray-700 p-4 rounded-lg border-2 border-indigo-500">
-                              <form (ngSubmit)="onUpdateTeam()" class="space-y-3">
-                                  <input type="text" [(ngModel)]="editTeamName" name="editTeamName" placeholder="Team Name" class="w-full bg-gray-600 border-gray-500 rounded-md py-2 px-3 focus:ring-indigo-500">
-                                  <input type="text" [(ngModel)]="editOwnerName" name="editOwnerName" placeholder="Owner Name" class="w-full bg-gray-600 border-gray-500 rounded-md py-2 px-3 focus:ring-indigo-500">
-                                  <input type="text" [(ngModel)]="editUsername" name="editUsername" placeholder="Username" class="w-full bg-gray-600 border-gray-500 rounded-md py-2 px-3 focus:ring-indigo-500">
-                                  <input type="password" [(ngModel)]="editPassword" name="editPassword" placeholder="New Password (optional)" class="w-full bg-gray-600 border-gray-500 rounded-md py-2 px-3 focus:ring-indigo-500">
-                                  <div class="flex justify-end space-x-2">
-                                      <button type="button" (click)="cancelEditing()" class="bg-gray-500 hover:bg-gray-600 text-white font-bold py-1 px-3 rounded-lg text-sm">Cancel</button>
-                                      <button type="submit" class="bg-green-600 hover:bg-green-700 text-white font-bold py-1 px-3 rounded-lg text-sm">Save</button>
-                                  </div>
-                              </form>
-                          </div>
-                      } @else {
-                          <!-- Display Mode -->
-                          <div class="bg-gray-700 p-3 rounded-lg flex justify-between items-center">
-                              <div>
-                                  <div class="flex items-center gap-2">
-                                      <p class="font-bold">{{ team.name }}</p>
-                                      @if(team.captainRole) {
-                                          <span class="text-xs font-semibold px-2 py-0.5 rounded-full" [class]="getCaptainRoleColor(team.captainRole)">{{ team.captainRole }}</span>
-                                      }
-                                  </div>
-                                  <p class="text-sm text-gray-400">Owner: {{ team.owner }}</p>
-                                  <p class="text-xs text-gray-400">Username: {{ getUserForTeam(team.id)?.username }}</p>
-                              </div>
-                              <div class="flex space-x-2">
-                                  <button (click)="startEditing(team)" class="p-2 bg-blue-600 hover:bg-blue-700 rounded-md">
-                                      <i data-lucide="edit-2" class="w-4 h-4"></i>
-                                  </button>
-                                  <button (click)="onDeleteTeam(team)" class="p-2 bg-red-600 hover:bg-red-700 rounded-md">
-                                      <i data-lucide="trash-2" class="w-4 h-4"></i>
-                                  </button>
-                              </div>
-                          </div>
-                      }
-                  } @empty {
-                      <p class="text-gray-500 text-center italic">No teams created yet.</p>
+            <!-- Manage Teams -->
+            <div class="bg-gray-700/50 p-4 rounded-lg flex-grow">
+              <h3 class="text-lg font-semibold mb-4 text-gray-200 border-b border-gray-600 pb-2">Manage Teams</h3>
+              <div class="space-y-3 max-h-[400px] overflow-y-auto pr-2">
+                @for(team of auctionService.teams(); track team.id) {
+                  @if(editingTeam()?.id === team.id) {
+                    <!-- Edit Form -->
+                     <div class="bg-gray-800 p-4 rounded-lg space-y-3">
+                      <input type="text" [(ngModel)]="editTeamName" name="editTeamName" placeholder="Team Name" class="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded-md text-gray-100">
+                      <input type="text" [(ngModel)]="editOwnerName" name="editOwnerName" placeholder="Owner Name" class="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded-md text-gray-100">
+                      <input type="text" [(ngModel)]="editUsername" name="editUsername" placeholder="Username" class="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded-md text-gray-100">
+                      <input type="password" [(ngModel)]="editPassword" name="editPassword" placeholder="New Password (optional)" class="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded-md text-gray-100">
+                      <div class="flex gap-2">
+                        <button (click)="onUpdateTeam()" class="flex-grow bg-blue-600 hover:bg-blue-700 text-white font-bold py-1 px-3 rounded text-sm">Save</button>
+                        <button (click)="cancelEditing()" class="flex-grow bg-gray-500 hover:bg-gray-600 text-white font-bold py-1 px-3 rounded text-sm">Cancel</button>
+                      </div>
+                    </div>
+                  } @else {
+                    <!-- Display View -->
+                    <div class="bg-gray-800/80 p-3 rounded-lg flex justify-between items-center">
+                      <div>
+                        <p class="font-bold text-white">{{ team.name }} <span [class]="getCaptainRoleColor(team.captainRole)" class="px-2 py-0.5 rounded-full text-xs font-semibold ml-2">{{ team.captainRole }}</span></p>
+                        <p class="text-sm text-gray-400">Owner: {{ team.owner }} | User: {{ getUserForTeam(team.id)?.username }}</p>
+                      </div>
+                      <div class="flex gap-2">
+                        <button (click)="startEditing(team)" class="p-2 bg-yellow-600 hover:bg-yellow-700 rounded-md text-white transition duration-200"><i data-lucide="edit" class="w-4 h-4"></i></button>
+                        <button (click)="onDeleteTeam(team)" class="p-2 bg-red-600 hover:bg-red-700 rounded-md text-white transition duration-200"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                      </div>
+                    </div>
                   }
+                } @empty {
+                  <p class="text-gray-400 text-center py-4">No teams created yet.</p>
+                }
               </div>
             </div>
           </div>
-
+          
           <!-- Column 2: Player Management -->
-          <div class="space-y-8 flex flex-col">
-             <!-- Create Player Panel -->
-             <div class="bg-gray-800 p-6 rounded-2xl shadow-lg border border-gray-700">
-               <h2 class="text-xl font-semibold mb-4">Create Player</h2>
-               <form (ngSubmit)="onCreatePlayer()" class="space-y-4">
-                   <input type="text" [(ngModel)]="newPlayerName" name="newPlayerName" placeholder="Player Name" class="w-full bg-gray-700 border-gray-600 rounded-md py-2 px-3 focus:ring-indigo-500">
-                   <select [(ngModel)]="newPlayerRole" name="newPlayerRole" class="w-full bg-gray-700 border-gray-600 rounded-md py-2 px-3 focus:ring-indigo-500">
-                      @for(role of playerRoles; track role) {
-                          <option [value]="role">{{role}}</option>
-                      }
-                   </select>
-                   <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg">Add Player</button>
-               </form>
-             </div>
-             <!-- Manage Players Panel -->
-             <div class="bg-gray-800 p-6 rounded-2xl shadow-lg border border-gray-700 flex-grow">
-               <h2 class="text-xl font-semibold mb-4">Manage Players ({{ auctionService.masterPlayerList().length }})</h2>
-               <div class="space-y-3 max-h-[40vh] overflow-y-auto pr-2">
-                  @for (player of auctionService.masterPlayerList(); track player.id) {
-                      @if (editingPlayer()?.id === player.id) {
-                          <!-- Edit Mode -->
-                          <div class="bg-gray-700 p-4 rounded-lg border-2 border-indigo-500">
-                              <form (ngSubmit)="onUpdatePlayer()" class="space-y-3">
-                                  <input type="text" [(ngModel)]="editPlayerName" name="editPlayerName" placeholder="Player Name" class="w-full bg-gray-600 border-gray-500 rounded-md py-2 px-3 focus:ring-indigo-500">
-                                  <select [(ngModel)]="editPlayerRole" name="editPlayerRole" class="w-full bg-gray-600 border-gray-500 rounded-md py-2 px-3 focus:ring-indigo-500">
-                                      @for(role of playerRoles; track role) {
-                                          <option [value]="role">{{role}}</option>
-                                      }
-                                  </select>
-                                  <div class="flex justify-end space-x-2">
-                                      <button type="button" (click)="cancelEditingPlayer()" class="bg-gray-500 hover:bg-gray-600 text-white font-bold py-1 px-3 rounded-lg text-sm">Cancel</button>
-                                      <button type="submit" class="bg-green-600 hover:bg-green-700 text-white font-bold py-1 px-3 rounded-lg text-sm">Save</button>
-                                  </div>
-                              </form>
-                          </div>
-                      } @else {
-                          <!-- Display Mode -->
-                          <div class="bg-gray-700 p-3 rounded-lg flex justify-between items-center">
-                              <div>
-                                  <p class="font-bold">{{ player.name }}</p>
-                                  <p class="text-sm" [class]="getRoleColor(player.role)">{{ player.role }}</p>
-                              </div>
-                              <div class="flex space-x-2">
-                                  <button (click)="startEditingPlayer(player)" class="p-2 bg-blue-600 hover:bg-blue-700 rounded-md">
-                                      <i data-lucide="edit-2" class="w-4 h-4"></i>
-                                  </button>
-                                  <button (click)="onDeletePlayer(player)" class="p-2 bg-red-600 hover:bg-red-700 rounded-md">
-                                      <i data-lucide="trash-2" class="w-4 h-4"></i>
-                                  </button>
-                              </div>
-                          </div>
-                      }
-                  } @empty {
-                      <p class="text-gray-500 text-center italic">No players created yet.</p>
+          <div class="bg-gray-800 rounded-lg p-6 shadow-md flex flex-col gap-6">
+            <!-- Create Player -->
+            <div class="bg-gray-700/50 p-4 rounded-lg">
+              <h3 class="text-lg font-semibold mb-4 text-gray-200 border-b border-gray-600 pb-2">Create Player</h3>
+              <form (ngSubmit)="onCreatePlayer()" class="space-y-4">
+                 <input type="text" [(ngModel)]="newPlayerName" name="newPlayerName" placeholder="Player Name" class="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded-md text-gray-100" required>
+                 <select [(ngModel)]="newPlayerRole" name="newPlayerRole" class="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded-md text-gray-100">
+                    @for(role of playerRoles; track role) {
+                      <option [value]="role">{{ role }}</option>
+                    }
+                  </select>
+                <button type="submit" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg flex items-center justify-center transition duration-200">
+                  <i data-lucide="user-plus" class="w-5 h-5 mr-2"></i> Create Player
+                </button>
+              </form>
+            </div>
+            <!-- Manage Players -->
+            <div class="bg-gray-700/50 p-4 rounded-lg flex-grow">
+              <h3 class="text-lg font-semibold mb-4 text-gray-200 border-b border-gray-600 pb-2">Manage Players ({{ auctionService.masterPlayerList().length }})</h3>
+              <div class="space-y-2 max-h-[400px] overflow-y-auto pr-2">
+                @for(player of auctionService.masterPlayerList(); track player.id) {
+                   @if(editingPlayer()?.id === player.id) {
+                    <!-- Edit Form -->
+                    <div class="bg-gray-800 p-3 rounded-lg space-y-2">
+                       <input type="text" [(ngModel)]="editPlayerName" name="editPlayerName" class="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded-md text-gray-100">
+                       <select [(ngModel)]="editPlayerRole" name="editPlayerRole" class="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded-md text-gray-100">
+                          @for(role of playerRoles; track role) {
+                            <option [value]="role">{{ role }}</option>
+                          }
+                       </select>
+                       <div class="flex gap-2">
+                          <button (click)="onUpdatePlayer()" class="flex-grow bg-blue-600 hover:bg-blue-700 text-white font-bold py-1 px-3 rounded text-sm">Save</button>
+                          <button (click)="cancelEditingPlayer()" class="flex-grow bg-gray-500 hover:bg-gray-600 text-white font-bold py-1 px-3 rounded text-sm">Cancel</button>
+                       </div>
+                    </div>
+                  } @else {
+                    <!-- Display View -->
+                    <div class="bg-gray-800/80 p-3 rounded-lg flex justify-between items-center">
+                       <div>
+                          <p class="font-bold text-white">{{ player.name }}</p>
+                          <p class="text-sm" [class]="getRoleColor(player.role)">{{ player.role }}</p>
+                       </div>
+                       <div class="flex gap-2">
+                          <button (click)="startEditingPlayer(player)" class="p-2 bg-yellow-600 hover:bg-yellow-700 rounded-md text-white"><i data-lucide="edit" class="w-4 h-4"></i></button>
+                          <button (click)="onDeletePlayer(player)" class="p-2 bg-red-600 hover:bg-red-700 rounded-md text-white"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                       </div>
+                    </div>
                   }
-               </div>
-             </div>
+                } @empty {
+                  <p class="text-gray-400 text-center py-4">No players created yet.</p>
+                }
+              </div>
+            </div>
           </div>
+          
+          <!-- Column 3: Auction Controls -->
+          <div class="bg-gray-800 rounded-lg p-6 shadow-md flex flex-col items-center justify-center">
+            <h3 class="text-xl font-bold text-white mb-6">Auction Control</h3>
+            <p class="text-gray-300 text-center mb-6">Manage teams and players, then start the auction when ready.</p>
+            <button (click)="onStartAuction()" 
+                    [disabled]="auctionService.teams().length < 4 || auctionService.masterPlayerList().length === 0"
+                    class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 px-6 rounded-lg text-xl flex items-center justify-center transition duration-200 disabled:bg-gray-500 disabled:cursor-not-allowed">
+              <i data-lucide="gavel" class="w-6 h-6 mr-3"></i> Start Auction
+            </button>
+             @if(auctionService.teams().length < 4) {
+              <p class="text-yellow-400 text-sm mt-4 text-center">You need at least 4 teams to start the auction.</p>
+            }
+            @if(auctionService.masterPlayerList().length === 0) {
+              <p class="text-yellow-400 text-sm mt-4 text-center">You need to add players before starting.</p>
+            }
+          </div>
+        </div>
+      }
 
+      @case ('admin_view') {
+        <!-- Main Header -->
+        <div class="flex items-center justify-center mb-4 text-center">
+          <h1 class="text-3xl sm:text-4xl font-extrabold text-white">
+            Hyva Premier League Auction 2026
+          </h1>
+        </div>
 
-          <!-- Column 3: Auction Start -->
-          <div class="space-y-8 flex flex-col">
-            <div class="bg-gray-800 p-6 rounded-2xl shadow-lg border border-gray-700">
-              <h2 class="text-xl font-semibold mb-4">Start Auction</h2>
-              <p class="text-gray-400 mb-6">Once all teams and players are configured, you can begin the auction. This will lock management and proceed to Round 1.</p>
-              <button (click)="onStartAuction()" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-4 px-4 rounded-lg transition-colors text-lg flex items-center justify-center space-x-2">
-                <i data-lucide="play-circle" class="w-6 h-6"></i>
-                <span>Start Auction</span>
-              </button>
+        <!-- Sub Header -->
+        <div class="bg-gray-800 rounded-lg shadow-lg p-3 mb-6 flex items-center justify-between">
+          <h2 class="text-xl sm:text-2xl font-bold text-gray-100">Admin Dashboard - Round {{ auctionService.currentRound() }}</h2>
+          <div class="flex items-center gap-2">
+            <button (click)="onStopAuction()" class="bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-2 px-4 rounded-lg transition duration-200 flex items-center text-sm">
+                <i data-lucide="stop-circle" class="w-4 h-4 mr-2"></i> Stop Auction
+            </button>
+            <button (click)="auctionService.logout()" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg transition duration-200 flex items-center text-sm">
+                <i data-lucide="log-out" class="w-4 h-4 mr-2"></i> Logout
+            </button>
+          </div>
+        </div>
+        
+        <!-- Main Content Grid -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <!-- Left Column: Auction Controls -->
+          <div class="bg-gray-800 rounded-lg p-6 shadow-md flex flex-col gap-6">
+            <div class="text-center bg-gray-700/50 p-4 rounded-lg">
+              <h3 class="text-lg font-semibold mb-4 text-gray-200">Auction Control</h3>
+              <app-dice />
+              @if(auctionService.roundOrder().length < auctionService.TEAMS_PER_ROUND) {
+                <button (click)="onRollForNextPick()" [disabled]="auctionService.isRolling()" class="mt-4 w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg transition duration-200 disabled:bg-gray-500 disabled:cursor-not-allowed text-lg">
+                  Roll for Pick {{ auctionService.roundOrder().length + 1 }}
+                </button>
+              } @else {
+                 <button (click)="onNextRound()" [disabled]="!auctionService.isRoundCompleted()" class="mt-4 w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-lg transition duration-200 disabled:bg-gray-500 disabled:cursor-not-allowed text-lg">
+                  Next Round
+                </button>
+              }
+               <button (click)="onUndoLastDraft()" [disabled]="!auctionService.canUndo()" class="mt-2 w-full bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-2 px-4 rounded-lg transition duration-200 disabled:bg-gray-500 disabled:cursor-not-allowed text-sm">
+                  Undo Last Pick
+               </button>
             </div>
             
-            <div class="bg-gray-800 p-6 rounded-2xl shadow-lg border border-gray-700 flex-grow">
-                <h2 class="text-xl font-semibold mb-4">Current Teams ({{ auctionService.teams().length }})</h2>
-                <div class="space-y-2 max-h-[45vh] overflow-y-auto pr-2">
-                    @for (team of auctionService.teams(); track team.id) {
-                        <div class="bg-gray-700 p-3 rounded-lg flex items-center space-x-3">
-                           <span class="p-2 rounded-full" [class]="team.color"><i [attr.data-lucide]="team.logo" class="w-5 h-5"></i></span>
-                           <p class="font-bold">{{ team.name }}</p>
-                        </div>
-                    } @empty {
-                        <p class="text-gray-500 text-center italic">No teams configured yet.</p>
-                    }
+            <div class="bg-gray-700/50 p-4 rounded-lg">
+                <h3 class="text-lg font-semibold mb-3 text-gray-200">Pick Order (Round {{ auctionService.currentRound() }})</h3>
+                <div class="space-y-2">
+                  @for(team of auctionService.roundOrder(); track team.id; let i = $index) {
+                    <div class="p-2 rounded-lg text-white font-semibold flex items-center" [class.bg-green-600]="auctionService.pickingTeam()?.id === team.id" [class.bg-gray-600]="auctionService.pickingTeam()?.id !== team.id" [class.opacity-50]="auctionService.turnIndex() > i">
+                      <span class="mr-3 font-bold text-lg">{{ i + 1 }}.</span>
+                      <i [attr.data-lucide]="team.logo" class="w-5 h-5 mr-2"></i>
+                      <span>{{ team.name }}</span>
+                    </div>
+                  }
+                  @for(placeholder of [].constructor(auctionService.TEAMS_PER_ROUND - auctionService.roundOrder().length); track $index) {
+                     <div class="p-2 rounded-lg bg-gray-800/50 text-gray-500 font-semibold flex items-center animate-pulse">
+                      <span class="mr-3 font-bold text-lg">{{ auctionService.roundOrder().length + $index + 1 }}.</span>
+                      <i data-lucide="hourglass" class="w-5 h-5 mr-2"></i>
+                      <span>Awaiting roll...</span>
+                    </div>
+                  }
                 </div>
             </div>
           </div>
-        </main>
-      </div>
-    }
-
-
-    @case ('admin_view') {
-      <div class="w-full">
-        <h1 class="text-3xl sm:text-4xl font-bold tracking-tight text-center mb-6">Hyva Premier League Auction 2026</h1>
-        <!-- Admin Header -->
-        <header class="bg-gray-800 rounded-xl p-4 flex justify-between items-center mb-6 shadow-lg border border-gray-700">
-          <div>
-            <h2 class="text-2xl font-bold tracking-tight">Admin Dashboard</h2>
-            <p class="text-gray-400">Round <span class="font-bold text-white">{{ auctionService.currentRound() }}</span> of {{ auctionService.MAX_ROUNDS }}</p>
-          </div>
-          <div class="flex items-center space-x-2">
-              <button (click)="onStopAuction()" class="flex items-center space-x-2 bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-2 px-4 rounded-lg transition-colors">
-                  <i data-lucide="stop-circle" class="w-4 h-4"></i>
-                  <span>Stop Auction</span>
-              </button>
-              <button (click)="auctionService.logout()" class="flex items-center space-x-2 bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg transition-colors">
-                  <i data-lucide="log-out" class="w-4 h-4"></i>
-                  <span>Logout</span>
-              </button>
-          </div>
-        </header>
-
-        <!-- Main Content -->
-        <main class="grid grid-cols-1 lg:grid-cols-3 gap-8 flex-grow">
-          <!-- Left: Auction Control & Teams -->
-          <div class="lg:col-span-1 space-y-8">
-              <!-- Auction Control Panel -->
-              <div class="bg-gray-800 p-6 rounded-2xl shadow-lg border border-gray-700">
-                <h2 class="text-xl font-semibold mb-4 text-center">Auction Control</h2>
-                <div class="flex flex-col items-center space-y-4">
-                    <app-dice />
-                    
-                    @if (auctionService.roundOrder().length < auctionService.TEAMS_PER_ROUND) {
-                      <button (click)="onRollForNextPick()" [disabled]="auctionService.isRolling()" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-lg transition-colors disabled:bg-gray-600 disabled:cursor-not-allowed flex items-center justify-center space-x-2">
-                          @if(auctionService.isRolling()) {
-                              <i data-lucide="loader-2" class="w-5 h-5 animate-spin"></i>
-                              <span>Rolling...</span>
-                          } @else {
-                              <i data-lucide="dice-5" class="w-5 h-5"></i>
-                              <span>Roll for Pick {{ auctionService.roundOrder().length + 1 }}</span>
-                          }
-                      </button>
-                    }
-                    
-                     <div class="w-full space-y-2 mt-4">
-                        <h3 class="text-lg font-semibold text-center text-gray-300">Round {{ auctionService.currentRound() }} Pick Order</h3>
-                        @for(team of auctionService.roundOrder(); track team.id; let i = $index) {
-                            <div class="flex items-center justify-between p-2 rounded-lg transition-colors" [class.bg-yellow-500/20]="i === auctionService.turnIndex() && !auctionService.isRoundCompleted()" [class.bg-gray-700]="i !== auctionService.turnIndex() || auctionService.isRoundCompleted()">
-                                <div class="flex items-center space-x-2">
-                                    <span class="font-bold text-gray-400">{{ i + 1 }}.</span>
-                                    <span [class.text-gray-500]="i < auctionService.turnIndex()" [class.line-through]="i < auctionService.turnIndex()">{{ team.name }}</span>
-                                </div>
-                                @if (i < auctionService.turnIndex()) {
-                                    <i data-lucide="check-circle-2" class="w-5 h-5 text-green-500"></i>
-                                }
-                                @if (i === auctionService.turnIndex() && !auctionService.isRoundCompleted()) {
-                                    <span class="text-xs font-bold text-yellow-400 animate-pulse">PICKING</span>
-                                }
-                            </div>
-                        }
-                        @if (auctionService.roundOrder().length < auctionService.TEAMS_PER_ROUND) {
-                          @for (i of [].constructor(auctionService.TEAMS_PER_ROUND - auctionService.roundOrder().length); track i) {
-                             <div class="flex items-center space-x-2 p-2 rounded-lg bg-gray-900/50 border border-dashed border-gray-700">
-                                <span class="font-bold text-gray-600">{{ auctionService.roundOrder().length + i + 1 }}.</span>
-                                <span class="text-gray-600 italic">To be rolled...</span>
-                             </div>
-                          }
-                        }
-                    </div>
-                    <div class="w-full mt-4 space-y-2">
-                       <button (click)="onUndoLastDraft()" [disabled]="!auctionService.canUndo()" class="w-full bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-3 px-4 rounded-lg transition-colors disabled:bg-gray-600 disabled:cursor-not-allowed flex items-center justify-center space-x-2">
-                           <i data-lucide="undo-2" class="w-5 h-5"></i>
-                           <span>Undo Last Pick</span>
-                       </button>
-                       @if (auctionService.roundOrder().length === auctionService.TEAMS_PER_ROUND) {
-                         <button (click)="onNextRound()" [disabled]="!auctionService.isRoundCompleted()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-lg transition-colors disabled:bg-gray-600 disabled:cursor-not-allowed flex items-center justify-center space-x-2">
-                             <i data-lucide="arrow-right-circle" class="w-5 h-5"></i>
-                             <span>Next Round</span>
-                         </button>
-                       }
-                    </div>
-                </div>
-              </div>
-          </div>
-
-          <!-- Middle: Available Players -->
-          <div class="bg-gray-800 p-6 rounded-2xl shadow-lg border border-gray-700 lg:col-span-1">
-            <h2 class="text-xl font-semibold mb-4">Available Players ({{ auctionService.availablePlayers().length }})</h2>
-            <div class="space-y-3 h-[70vh] overflow-y-auto pr-2">
-              @for (player of auctionService.availablePlayers(); track player.id) {
-                <div class="bg-gray-700 p-3 rounded-lg flex justify-between items-center">
-                  <div>
-                    <p class="font-bold">{{ player.name }}</p>
-                    <p class="text-sm" [class]="getRoleColor(player.role)">{{ player.role }}</p>
-                  </div>
-                  <button class="bg-gray-600 text-gray-400 cursor-not-allowed font-bold py-1 px-3 rounded-md text-sm">Draft</button>
+          
+          <!-- Middle Column: Available Players -->
+          <div class="bg-gray-800 rounded-lg p-6 shadow-md">
+            <h3 class="text-lg font-semibold mb-4 text-gray-200">Available Players ({{ auctionService.availablePlayers().length }})</h3>
+            <div class="space-y-2 max-h-[600px] overflow-y-auto pr-2">
+              @for(player of auctionService.availablePlayers(); track player.id) {
+                 <div class="bg-gray-700/80 p-3 rounded-lg flex justify-between items-center">
+                   <div>
+                      <p class="font-bold text-white">{{ player.name }}</p>
+                      <p class="text-sm" [class]="getRoleColor(player.role)">{{ player.role }}</p>
+                   </div>
                 </div>
               } @empty {
-                <p class="text-gray-400 text-center mt-8">No more players available.</p>
+                <p class="text-gray-400 text-center py-4">No more players available.</p>
               }
             </div>
           </div>
           
-          <!-- Right: Team Rosters -->
-          <div class="lg:col-span-1 space-y-6 h-[85vh] overflow-y-auto pr-2">
-            @for (team of auctionService.teams(); track team.id) {
-              <div class="bg-gray-800 p-4 rounded-2xl shadow-lg border border-gray-700 transition-all duration-300" [class.border-yellow-400]="auctionService.pickingTeam()?.id === team.id" [class.shadow-yellow-400/20]="auctionService.pickingTeam()?.id === team.id">
-                <div class="flex items-center space-x-3 mb-3 pb-2 border-b border-gray-700">
-                    <span class="p-2 rounded-full" [class]="team.color"><i [attr.data-lucide]="team.logo" class="w-6 h-6"></i></span>
-                    <div>
-                      <div class="flex items-center gap-2">
-                        <h3 class="text-lg font-bold">{{ team.name }}</h3>
-                        @if(team.captainRole) {
-                          <span class="text-xs font-semibold px-2 py-0.5 rounded-full" [class]="getCaptainRoleColor(team.captainRole)">{{ team.captainRole }}</span>
-                        }
-                      </div>
-                      <p class="text-sm text-gray-400">{{ team.owner }}</p>
-                    </div>
-                </div>
-                <div class="space-y-2">
-                    @for(player of team.players; track player.id) {
-                        <div class="bg-gray-700/50 px-3 py-1.5 rounded-md text-sm flex justify-between">
-                            <div class="flex items-center">
-                              <span>{{ player.name }}</span>
-                            </div>
-                            <span class="font-mono text-xs opacity-70">{{player.role}}</span>
-                        </div>
-                    }
-                    @if(team.players.length === 0) {
-                        <p class="text-xs text-gray-500 text-center italic py-2">No players drafted yet.</p>
-                    }
-                </div>
-              </div>
-            }
-          </div>
-        </main>
-      </div>
-    }
-
-    @case ('team_view') {
-      <div class="w-full">
-        <h1 class="text-3xl sm:text-4xl font-bold tracking-tight text-center mb-6">Hyva Premier League Auction 2026</h1>
-          <!-- Team Header -->
-        <header class="bg-gray-800 rounded-xl p-4 flex justify-between items-center mb-6 shadow-lg border border-gray-700">
-          <div>
-            <h2 class="text-2xl font-bold tracking-tight">Team Dashboard</h2>
-            <p class="text-gray-400">Round <span class="font-bold text-white">{{ auctionService.currentRound() }}</span> of {{ auctionService.MAX_ROUNDS }}</p>
-          </div>
-          <button (click)="auctionService.logout()" class="flex items-center space-x-2 bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg transition-colors">
-            <i data-lucide="log-out" class="w-4 h-4"></i>
-            <span>Logout</span>
-          </button>
-        </header>
-
-        <!-- Main Content -->
-        <main class="grid grid-cols-1 lg:grid-cols-3 gap-8 flex-grow">
-          <!-- Left: Auction Status & Teams -->
-          <div class="lg:col-span-1 space-y-6 h-[85vh] overflow-y-auto pr-2">
-              <!-- Auction Status Panel -->
-              <div class="bg-gray-800 p-6 rounded-2xl shadow-lg border border-gray-700">
-                <h2 class="text-xl font-semibold mb-4 text-center">Auction Status</h2>
-                <div class="flex flex-col items-center space-y-4">
-                    <app-dice />
-                    @if (auctionService.roundOrder().length > 0) {
-                       <div class="w-full space-y-2 mt-4">
-                          <h3 class="text-lg font-semibold text-center text-gray-300">Pick Order</h3>
-                          @for(team of auctionService.roundOrder(); track team.id; let i = $index) {
-                              <div class="flex items-center justify-between p-2 rounded-lg transition-colors" [class.bg-yellow-500/20]="i === auctionService.turnIndex() && !auctionService.isRoundCompleted()" [class.bg-gray-700]="i !== auctionService.turnIndex() || auctionService.isRoundCompleted()">
-                                  <div class="flex items-center space-x-2">
-                                      <span class="font-bold text-gray-400">{{ i + 1 }}.</span>
-                                      <span [class.text-gray-500]="i < auctionService.turnIndex()" [class.line-through]="i < auctionService.turnIndex()">{{ team.name }}</span>
-                                  </div>
-                                  @if (i < auctionService.turnIndex()) {
-                                      <i data-lucide="check-circle-2" class="w-5 h-5 text-green-500"></i>
-                                  }
-                                  @if (i === auctionService.turnIndex() && !auctionService.isRoundCompleted()) {
-                                      @if(auctionService.isMyTurn()) {
-                                        <span class="text-xs font-bold text-green-400 animate-pulse">YOUR TURN</span>
-                                      } @else {
-                                        <span class="text-xs font-bold text-yellow-400 animate-pulse">PICKING</span>
-                                      }
-                                  }
-                              </div>
-                          }
-                       </div>
-                    } @else {
-                        <p class="text-gray-500 italic text-center">Waiting for admin to determine pick order...</p>
-                    }
-                </div>
-              </div>
-
-              <!-- All Team Rosters -->
-              @for (team of auctionService.teams(); track team.id) {
-                  <div class="bg-gray-800 p-4 rounded-2xl shadow-lg border border-gray-700 transition-all duration-300" [class.border-yellow-400]="auctionService.pickingTeam()?.id === team.id" [class.shadow-yellow-400/20]="auctionService.pickingTeam()?.id === team.id">
-                    <div class="flex items-center space-x-3 mb-3 pb-2 border-b border-gray-700">
-                        <span class="p-2 rounded-full" [class]="team.color"><i [attr.data-lucide]="team.logo" class="w-6 h-6"></i></span>
-                        <div>
-                          <div class="flex items-center gap-2">
-                            <h3 class="text-lg font-bold">{{ team.name }}</h3>
-                            @if(team.captainRole) {
-                              <span class="text-xs font-semibold px-2 py-0.5 rounded-full" [class]="getCaptainRoleColor(team.captainRole)">{{ team.captainRole }}</span>
-                            }
-                          </div>
-                          <p class="text-sm text-gray-400">{{ team.owner }}</p>
-                        </div>
-                    </div>
-                    <div class="space-y-2">
+          <!-- Right Column: Team Rosters -->
+          <div class="bg-gray-800 rounded-lg p-6 shadow-md">
+            <h3 class="text-lg font-semibold mb-4 text-gray-200">Team Rosters</h3>
+            <div class="space-y-4 max-h-[600px] overflow-y-auto pr-2">
+              @for(team of auctionService.teams(); track team.id) {
+                <div class="bg-gray-700/50 p-3 rounded-lg">
+                    <h4 class="font-bold text-white mb-2 flex items-center">
+                      <i [attr.data-lucide]="team.logo" class="w-5 h-5 mr-2"></i>
+                      {{ team.name }} ({{team.players.length}})
+                      <span [class]="getCaptainRoleColor(team.captainRole)" class="px-2 py-0.5 rounded-full text-xs font-semibold ml-2">{{ team.captainRole }}</span>
+                    </h4>
+                    <ul class="list-disc list-inside text-gray-300 text-sm pl-2">
                         @for(player of team.players; track player.id) {
-                            <div class="bg-gray-700/50 px-3 py-1.5 rounded-md text-sm flex justify-between">
-                                <div class="flex items-center">
-                                  <span>{{ player.name }}</span>
-                                </div>
-                                <span class="font-mono text-xs opacity-70">{{player.role}}</span>
-                            </div>
+                           <li>{{ player.name }} <span class="text-xs" [class]="getRoleColor(player.role)">({{ player.role }})</span></li>
+                        } @empty {
+                            <li class="list-none text-gray-500">No players drafted.</li>
                         }
-                        @if(team.players.length === 0) {
-                            <p class="text-xs text-gray-500 text-center italic py-2">No players drafted yet.</p>
-                        }
-                    </div>
-                  </div>
-              }
-          </div>
-
-          <!-- Right: Available Players -->
-          <div class="bg-gray-800 p-6 rounded-2xl shadow-lg border border-gray-700 lg:col-span-2">
-            @if (auctionService.isMyTurn()) {
-              <h2 class="text-2xl font-bold mb-4 text-green-400 animate-pulse text-center">YOUR TURN TO PICK!</h2>
-            } @else {
-              <h2 class="text-xl font-semibold mb-4">Available Players ({{ auctionService.availablePlayers().length }})</h2>
-            }
-            <div class="space-y-3 h-[70vh] overflow-y-auto pr-2 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
-              @for (player of auctionService.availablePlayers(); track player.id) {
-                <div class="bg-gray-700 p-3 rounded-lg flex justify-between items-center transition-shadow hover:shadow-lg hover:ring-2 hover:ring-indigo-500">
-                  <div>
-                    <p class="font-bold">{{ player.name }}</p>
-                    <p class="text-sm" [class]="getRoleColor(player.role)">{{ player.role }}</p>
-                  </div>
-                  <button (click)="onDraftPlayer(player)" [disabled]="!auctionService.isMyTurn()" class="bg-green-600 hover:bg-green-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white font-bold py-2 px-3 rounded-md text-sm">
-                      <i data-lucide="gavel" class="w-4 h-4"></i>
-                  </button>
+                    </ul>
                 </div>
-              } @empty {
-                <p class="text-gray-400 text-center mt-8 md:col-span-2 xl:col-span-3">No more players available.</p>
               }
             </div>
           </div>
-        </main>
-      </div>
-    }
+        </div>
+      }
 
-    @case ('auction_ended') {
-      <div class="m-auto flex flex-col items-center justify-center w-full">
-        <h1 class="text-3xl sm:text-4xl font-bold tracking-tight text-center mb-4">Hyva Premier League Auction 2026</h1>
-        <h2 class="text-5xl font-bold mb-8 text-green-400">Auction Concluded!</h2>
+      @case ('team_view') {
+        @let team = currentUserTeam();
+        @if(team) {
+          <!-- Main Header -->
+          <div class="flex items-center justify-center mb-4 text-center">
+            <h1 class="text-3xl sm:text-4xl font-extrabold text-white">
+              Hyva Premier League Auction 2026
+            </h1>
+          </div>
+          <!-- Sub Header -->
+          <div class="bg-gray-800 rounded-lg shadow-lg p-3 mb-6 flex items-center justify-between">
+            <h2 class="text-xl sm:text-2xl font-bold text-white flex items-center">
+                <i [attr.data-lucide]="team.logo" class="w-7 h-7 mr-3"></i>
+                {{ team.name }} - Team Dashboard
+            </h2>
+            <button (click)="auctionService.logout()"
+              class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg transition duration-200 flex items-center">
+              <i data-lucide="log-out" class="w-4 h-4 mr-2"></i>
+              <span>Logout</span>
+            </button>
+          </div>
 
-        <div class="w-full grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
-          @for (team of auctionService.teams(); track team.id) {
-            <div class="bg-gray-800 p-6 rounded-2xl shadow-lg border border-gray-700">
-              <div class="flex items-center space-x-3 mb-4">
-                <span class="p-2 rounded-full" [class]="team.color"><i [attr.data-lucide]="team.logo" class="w-6 h-6"></i></span>
-                <div class="flex items-center gap-2">
-                    <h3 class="text-xl font-bold">{{ team.name }}</h3>
-                    @if(team.captainRole) {
-                        <span class="text-xs font-semibold px-2 py-0.5 rounded-full" [class]="getCaptainRoleColor(team.captainRole)">{{ team.captainRole }}</span>
-                    }
-                </div>
-              </div>
+           @if(auctionService.isMyTurn()) {
+            <div class="bg-green-600 text-white text-2xl font-bold p-4 rounded-lg text-center mb-6 animate-pulse">
+                IT'S YOUR TURN TO PICK!
+            </div>
+           } @else if(auctionService.pickingTeam()) {
+             <div class="bg-yellow-600 text-white text-xl font-bold p-4 rounded-lg text-center mb-6">
+                {{ auctionService.pickingTeam()?.name }} is now picking...
+            </div>
+           }
+
+          <!-- Main Content Grid -->
+          <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <!-- Left Column: Auction Info -->
+            <div class="bg-gray-800 rounded-lg p-6 shadow-md">
+              <h3 class="text-lg font-semibold mb-3 text-gray-200">Pick Order (Round {{ auctionService.currentRound() }})</h3>
               <div class="space-y-2">
-                @for(player of team.players; track player.id) {
-                    <div class="bg-gray-700 px-3 py-2 rounded-md">
-                        <p class="font-semibold flex items-center">
-                          {{ player.name }}
-                        </p>
-                        <p class="text-xs text-gray-400">{{ player.role }}</p>
-                    </div>
+                @for(pick of auctionService.roundOrder(); track pick.id; let i = $index) {
+                  <div class="p-2 rounded-lg text-white font-semibold flex items-center" [class.bg-green-600]="auctionService.pickingTeam()?.id === pick.id" [class.bg-gray-600]="auctionService.pickingTeam()?.id !== pick.id" [class.opacity-50]="auctionService.turnIndex() > i">
+                    <span class="mr-3 font-bold text-lg">{{ i + 1 }}.</span>
+                    <i [attr.data-lucide]="pick.logo" class="w-5 h-5 mr-2"></i>
+                    <span>{{ pick.name }}</span>
+                  </div>
                 }
-                 @if(team.players.length === 0) {
-                    <p class="text-sm text-gray-500 text-center italic py-2">No players were drafted.</p>
+                 @for(placeholder of [].constructor(auctionService.TEAMS_PER_ROUND - auctionService.roundOrder().length); track $index) {
+                     <div class="p-2 rounded-lg bg-gray-800/50 text-gray-500 font-semibold flex items-center animate-pulse">
+                      <span class="mr-3 font-bold text-lg">{{ auctionService.roundOrder().length + $index + 1 }}.</span>
+                      <i data-lucide="hourglass" class="w-5 h-5 mr-2"></i>
+                      <span>Awaiting roll...</span>
+                    </div>
                   }
               </div>
             </div>
-          }
+
+            <!-- Middle Column: Available Players -->
+            <div class="bg-gray-800 rounded-lg p-6 shadow-md">
+              <h3 class="text-lg font-semibold mb-4 text-gray-200">Available Players ({{ auctionService.availablePlayers().length }})</h3>
+              <div class="space-y-2 max-h-[600px] overflow-y-auto pr-2">
+                 @for(player of auctionService.availablePlayers(); track player.id) {
+                   <div class="bg-gray-700/80 p-3 rounded-lg flex justify-between items-center">
+                     <div>
+                        <p class="font-bold text-white">{{ player.name }}</p>
+                        <p class="text-sm" [class]="getRoleColor(player.role)">{{ player.role }}</p>
+                     </div>
+                     @if(auctionService.isMyTurn()) {
+                       <button (click)="onDraftPlayer(player)" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-3 rounded-lg text-sm flex items-center">
+                         <i data-lucide="plus" class="w-4 h-4 mr-1"></i> Draft
+                       </button>
+                     }
+                  </div>
+                } @empty {
+                   <p class="text-gray-400 text-center py-4">No more players available.</p>
+                }
+              </div>
+            </div>
+
+            <!-- Right Column: Team Rosters -->
+            <div class="bg-gray-800 rounded-lg p-6 shadow-md">
+              <h3 class="text-lg font-semibold mb-4 text-gray-200">Team Rosters</h3>
+              <div class="space-y-4 max-h-[600px] overflow-y-auto pr-2">
+                 @for(t of auctionService.teams(); track t.id) {
+                  <div class="bg-gray-700/50 p-3 rounded-lg" [class.border-2]="t.id === team.id" [class.border-green-500]="t.id === team.id">
+                      <h4 class="font-bold text-white mb-2 flex items-center">
+                        <i [attr.data-lucide]="t.logo" class="w-5 h-5 mr-2"></i>
+                        {{ t.name }} ({{t.players.length}})
+                         <span [class]="getCaptainRoleColor(t.captainRole)" class="px-2 py-0.5 rounded-full text-xs font-semibold ml-2">{{ t.captainRole }}</span>
+                      </h4>
+                      <ul class="list-disc list-inside text-gray-300 text-sm pl-2">
+                           @for(player of t.players; track player.id) {
+                           <li>{{ player.name }} <span class="text-xs" [class]="getRoleColor(player.role)">({{ player.role }})</span></li>
+                        } @empty {
+                            <li class="list-none text-gray-500">No players drafted.</li>
+                        }
+                      </ul>
+                  </div>
+                }
+              </div>
+            </div>
+          </div>
+        }
+      }
+      
+      @case ('public_view') {
+        <!-- Main Header -->
+        <div class="flex items-center justify-center mb-4 text-center">
+          <h1 class="text-3xl sm:text-4xl font-extrabold text-white">
+            Hyva Premier League Auction 2026
+          </h1>
         </div>
-        <div class="mt-12 flex items-center justify-center space-x-4">
-            <button (click)="auctionService.logout()" class="flex items-center space-x-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-6 rounded-lg transition-colors">
-              <i data-lucide="log-in" class="w-5 h-5"></i>
-              <span>Back to Login</span>
+        <!-- Sub Header -->
+        <div class="bg-gray-800 rounded-lg shadow-lg p-3 mb-6 flex items-center justify-between">
+            <h2 class="text-xl sm:text-2xl font-bold text-gray-100">Spectator View - Round {{ auctionService.currentRound() }}</h2>
+            <button (click)="onReturnToLogin()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition duration-200 flex items-center text-sm">
+                <i data-lucide="arrow-left" class="w-4 h-4 mr-2"></i> Back to Login
             </button>
-            @if (auctionService.currentUser()?.role === 'admin') {
-                <button (click)="onResetAuction()" class="flex items-center space-x-2 bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg transition-colors">
-                  <i data-lucide="refresh-cw" class="w-5 h-5"></i>
-                  <span>Start New Auction</span>
-                </button>
-            }
         </div>
-      </div>
+
+        @if(auctionService.pickingTeam()) {
+            <div class="bg-gray-700 text-white text-xl p-4 rounded-lg text-center mb-6">
+                <span class="font-bold">{{ auctionService.pickingTeam()?.name }}</span> is now picking...
+            </div>
+        }
+
+        <!-- Main Content Grid -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <!-- Left Column: Auction Info -->
+            <div class="bg-gray-800 rounded-lg p-6 shadow-md">
+                <h3 class="text-lg font-semibold mb-3 text-gray-200">Pick Order (Round {{ auctionService.currentRound() }})</h3>
+                <div class="space-y-2">
+                    @for(pick of auctionService.roundOrder(); track pick.id; let i = $index) {
+                      <div class="p-2 rounded-lg text-white font-semibold flex items-center" [class.bg-green-600]="auctionService.pickingTeam()?.id === pick.id" [class.bg-gray-600]="auctionService.pickingTeam()?.id !== pick.id" [class.opacity-50]="auctionService.turnIndex() > i">
+                        <span class="mr-3 font-bold text-lg">{{ i + 1 }}.</span>
+                        <i [attr.data-lucide]="pick.logo" class="w-5 h-5 mr-2"></i>
+                        <span>{{ pick.name }}</span>
+                      </div>
+                    }
+                    @for(placeholder of [].constructor(auctionService.TEAMS_PER_ROUND - auctionService.roundOrder().length); track $index) {
+                        <div class="p-2 rounded-lg bg-gray-800/50 text-gray-500 font-semibold flex items-center">
+                            <span class="mr-3 font-bold text-lg">{{ auctionService.roundOrder().length + $index + 1 }}.</span>
+                            <i data-lucide="hourglass" class="w-5 h-5 mr-2"></i>
+                            <span>Awaiting roll...</span>
+                        </div>
+                    }
+                </div>
+            </div>
+
+            <!-- Middle Column: Available Players -->
+            <div class="bg-gray-800 rounded-lg p-6 shadow-md">
+                <h3 class="text-lg font-semibold mb-4 text-gray-200">Available Players ({{ auctionService.availablePlayers().length }})</h3>
+                <div class="space-y-2 max-h-[600px] overflow-y-auto pr-2">
+                    @for(player of auctionService.availablePlayers(); track player.id) {
+                      <div class="bg-gray-700/80 p-3 rounded-lg flex justify-between items-center">
+                        <div>
+                            <p class="font-bold text-white">{{ player.name }}</p>
+                            <p class="text-sm" [class]="getRoleColor(player.role)">{{ player.role }}</p>
+                        </div>
+                      </div>
+                    } @empty {
+                       <p class="text-gray-400 text-center py-4">No more players available.</p>
+                    }
+                </div>
+            </div>
+
+            <!-- Right Column: Team Rosters -->
+            <div class="bg-gray-800 rounded-lg p-6 shadow-md">
+                <h3 class="text-lg font-semibold mb-4 text-gray-200">Team Rosters</h3>
+                <div class="space-y-4 max-h-[600px] overflow-y-auto pr-2">
+                    @for(team of auctionService.teams(); track team.id) {
+                      <div class="bg-gray-700/50 p-3 rounded-lg">
+                          <h4 class="font-bold text-white mb-2 flex items-center">
+                              <i [attr.data-lucide]="team.logo" class="w-5 h-5 mr-2"></i>
+                              {{ team.name }} ({{team.players.length}})
+                               <span [class]="getCaptainRoleColor(team.captainRole)" class="px-2 py-0.5 rounded-full text-xs font-semibold ml-2">{{ team.captainRole }}</span>
+                          </h4>
+                          <ul class="list-disc list-inside text-gray-300 text-sm pl-2">
+                               @for(player of team.players; track player.id) {
+                                  <li>{{ player.name }} <span class="text-xs" [class]="getRoleColor(player.role)">({{ player.role }})</span></li>
+                               } @empty {
+                                   <li class="list-none text-gray-500">No players drafted.</li>
+                               }
+                          </ul>
+                      </div>
+                    }
+                </div>
+            </div>
+        </div>
+      }
+
+      @case ('auction_ended') {
+        <!-- Main Header -->
+        <div class="flex items-center justify-center mb-4 text-center">
+          <h1 class="text-3xl sm:text-4xl font-extrabold text-white">
+            Hyva Premier League Auction 2026
+          </h1>
+        </div>
+         <!-- Sub Header -->
+        <div class="bg-gray-800 rounded-lg shadow-lg p-3 mb-6 flex items-center justify-between">
+            <h2 class="text-xl sm:text-2xl font-bold text-gray-100">Auction Concluded</h2>
+            <div>
+              @if(auctionService.currentUser()?.role === 'admin') {
+                <button (click)="onResetAuction()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition duration-200 flex items-center text-sm mr-2">
+                    <i data-lucide="refresh-cw" class="w-4 h-4 mr-2"></i> Start New Auction
+                </button>
+              }
+               <button (click)="auctionService.logout()" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg transition duration-200 flex items-center text-sm">
+                  <i data-lucide="log-out" class="w-4 h-4 mr-2"></i> Logout
+              </button>
+            </div>
+        </div>
+
+        <h3 class="text-2xl font-bold text-center text-green-400 mb-6">Final Team Rosters</h3>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+           @for(team of auctionService.teams(); track team.id) {
+            <div class="bg-gray-800 rounded-lg p-6 shadow-md">
+                <h4 class="font-bold text-white mb-3 flex items-center text-lg border-b border-gray-700 pb-2">
+                    <i [attr.data-lucide]="team.logo" class="w-6 h-6 mr-3"></i>
+                    {{ team.name }}
+                     <span [class]="getCaptainRoleColor(team.captainRole)" class="px-2 py-0.5 rounded-full text-xs font-semibold ml-auto">{{ team.captainRole }}</span>
+                </h4>
+                <div class="space-y-2 max-h-[400px] overflow-y-auto pr-2">
+                     @for(player of team.players; track player.id) {
+                        <div class="bg-gray-700/80 p-2 rounded-lg">
+                            <p class="font-semibold text-white">{{ player.name }}</p>
+                            <p class="text-sm" [class]="getRoleColor(player.role)">{{ player.role }}</p>
+                        </div>
+                    } @empty {
+                       <p class="text-gray-500 text-center py-4">No players were drafted.</p>
+                    }
+                </div>
+            </div>
+           }
+        </div>
+      }
     }
-  }
+  </div>
 </div>

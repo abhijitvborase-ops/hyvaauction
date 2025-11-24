@@ -1,4 +1,3 @@
-
 import { Component, ChangeDetectionStrategy, inject, OnInit, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -48,6 +47,15 @@ export class AppComponent implements OnInit {
   editPlayerRole = signal<Player['role']>('Staff');
 
   playerRoles: Player['role'][] = ['Staff', 'Technician', 'Contractual Worker'];
+
+  // Computed signal to find the current user's team
+  currentUserTeam = computed(() => {
+    const user = this.auctionService.currentUser();
+    if (user?.role !== 'team_owner' || !user.teamId) {
+      return null;
+    }
+    return this.auctionService.teams().find(t => t.id === user.teamId) ?? null;
+  });
 
   ngOnInit() {
     // This is needed to render icons initially
