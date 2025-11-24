@@ -1,3 +1,4 @@
+import { FirebaseService } from './services/firebase.service';
 import { Component, ChangeDetectionStrategy, inject, OnInit, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -18,6 +19,7 @@ declare var lucide: any;
 })
 export class AppComponent implements OnInit {
   auctionService = inject(AuctionService);
+    firebase = inject(FirebaseService);
 
   // Form signals for login
   loginUsername = signal('');
@@ -60,6 +62,10 @@ export class AppComponent implements OnInit {
   ngOnInit() {
     // This is needed to render icons initially
     setTimeout(() => lucide.createIcons(), 50);
+    console.log(
+      'Firebase initialized, projectId =',
+      this.firebase.app.options['projectId']
+    );
   }
   
   onLogin() {

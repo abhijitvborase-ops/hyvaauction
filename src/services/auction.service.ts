@@ -1,6 +1,8 @@
 
 import { Injectable, signal, computed, WritableSignal } from '@angular/core';
 import { Player, Team, User } from '../models';
+import { FirebaseService } from './firebase.service';
+import { collection, addDoc, getDocs } from 'firebase/firestore';
 
 export type AuctionState = 'login' | 'public_view' | 'admin_lobby' | 'admin_view' | 'team_view' | 'auction_ended';
 
@@ -60,13 +62,16 @@ export class AuctionService {
 
   canUndo = computed(() => this.lastDraftAction() !== null);
 
-  constructor() {
+  constructor(private firebase: FirebaseService) {
     this.seedData();
+    this.loadDataFromFirestore();  // Firestore मधून teams/users load
   }
 
   private seedData() {
     this.masterPlayerList.set([...DEFAULT_PLAYERS]);
     this.availablePlayers.set([...this.masterPlayerList()]);
+
+    this.teams.set([]);
 
     const initialTeams: Team[] = [];
     this.teams.set(initialTeams);
@@ -74,7 +79,55 @@ export class AuctionService {
     const initialUsers: User[] = [
       { id: 1, username: 'admin', password: 'password', role: 'admin' },
     ];
-    this.users.set(initialUsers);
+    this.users.set(initialUsers);    
+  }
+  private async loadDataFromFirestore() {
+    const db = this.firebase.db;
+
+    try {
+      // TEAMS
+      const teamsSnap = await getDocs(collection(db, 'teams'));
+      const loadedTeams: Team[] = [];
+      teamsSnap.forEach((docSnap) => {
+        const data = docSnap.data() as any;
+        loadedTeams.push({
+          id: data.teamId,
+          name: data.name,
+          owner: data.owner,
+          players: [], // players नंतर sync करू
+          captainRole: data.captainRole,
+          color: data.color ?? 'bg-gray-500',
+          logo: data.logo ?? 'star',
+        });
+      });
+
+      // USERS (admin + Firestore)
+      const usersSnap = await getDocs(collection(db, 'users'));
+      const existingUsers = this.users(); // admin already inside
+      const loadedUsers: User[] = [...existingUsers];
+
+      usersSnap.forEach((docSnap) => {
+        const data = docSnap.data() as any;
+        loadedUsers.push({
+          id: data.userId,
+          username: data.username,
+          password: data.password,
+          role: data.role,
+          teamId: data.teamId,
+        });
+      });
+
+      this.teams.set(loadedTeams);
+      this.users.set(loadedUsers);
+
+      console.log('Loaded from Firestore:', {
+        teams: loadedTeams.length,
+        users: loadedUsers.length,
+      });
+    } catch (err) {
+      console.error('Error loading data from Firestore', err);
+      this.errorMessage.set('Could not load saved auction data.');
+    }
   }
 
   login(username: string, password?: string) {
@@ -205,9 +258,16 @@ export class AuctionService {
     this.lastDraftAction.set(null);
   }
 
-  createTeamOwner(teamName: string, ownerName: string, username: string, password: string, captainRole: 'Staff' | 'Technician') {
+   async createTeamOwner(
+    teamName: string,
+    ownerName: string,
+    username: string,
+    password: string,
+    captainRole: 'Staff' | 'Technician'
+  ) {
     if (this.currentUser()?.role !== 'admin') return;
 
+    // 1) आधीसारखंच local state मध्ये add कर
     const newTeamId = Math.max(...this.teams().map(t => t.id), 0) + 1;
     const newTeam: Team = {
       id: newTeamId,
@@ -222,14 +282,44 @@ export class AuctionService {
 
     const newUserId = Math.max(...this.users().map(u => u.id), 0) + 1;
     const newUser: User = {
-        id: newUserId,
-        username: username,
-        password: password,
-        role: 'team_owner',
-        teamId: newTeamId
+      id: newUserId,
+      username: username,
+      password: password,     // NOTE: plain text पासवर्ड – नंतर secure करू
+      role: 'team_owner',
+      teamId: newTeamId
     };
     this.users.update(users => [...users, newUser]);
+
+    // 2) Firestore मध्ये टीम आणि यूजर save कर
+    try {
+      const db = this.firebase.db;
+
+      // teams collection
+      await addDoc(collection(db, 'teams'), {
+        teamId: newTeamId,   // नंबर id वेगळा field मध्ये ठेवतोय
+        name: teamName,
+        owner: ownerName,
+        captainRole,
+        color: 'bg-gray-500',
+        logo: 'star',
+      });
+
+      // users collection
+      await addDoc(collection(db, 'users'), {
+        userId: newUserId,
+        username,
+        password,            // plain text – उत्पादनात hashing गरजेचं
+        role: 'team_owner',
+        teamId: newTeamId,
+      });
+
+    } catch (err) {
+      console.error('Error saving team owner to Firestore', err);
+      // हव्यास तर इथे errorMessage signal set करू शकतोस
+      this.errorMessage.set('Saved locally but failed to sync with server.');
+    }
   }
+
 
   updateTeamOwner(
     teamId: number,
