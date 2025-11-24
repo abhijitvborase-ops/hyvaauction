@@ -2,7 +2,10 @@
 import { Injectable, signal, computed, WritableSignal } from '@angular/core';
 import { Player, Team, User } from '../models';
 import { FirebaseService } from './firebase.service';
-import { collection, addDoc, getDocs } from 'firebase/firestore';
+import { collection, addDoc, getDocs, setDoc,
+  doc,
+  updateDoc,
+  deleteDoc, } from 'firebase/firestore';
 
 export type AuctionState = 'login' | 'public_view' | 'admin_lobby' | 'admin_view' | 'team_view' | 'auction_ended';
 
@@ -116,13 +119,27 @@ export class AuctionService {
           teamId: data.teamId,
         });
       });
-
+       // ---- PLAYERS ----
+    const playersSnap = await getDocs(collection(db, 'players'));
+    const loadedPlayers: Player[] = [];
+    playersSnap.forEach((docSnap) => {
+      const data = docSnap.data() as any;
+      loadedPlayers.push({
+        id: data.playerId ?? Number(docSnap.id),
+        name: data.name,
+        role: data.role,
+      } as Player);
+    });
+  const sortFn = (a: Player, b: Player) => a.name.localeCompare(b.name);
       this.teams.set(loadedTeams);
       this.users.set(loadedUsers);
+      this.masterPlayerList.set([...loadedPlayers].sort(sortFn));
+      this.availablePlayers.set([...loadedPlayers].sort(sortFn));
 
       console.log('Loaded from Firestore:', {
         teams: loadedTeams.length,
         users: loadedUsers.length,
+        players: loadedPlayers.length,
       });
     } catch (err) {
       console.error('Error loading data from Firestore', err);
@@ -380,47 +397,81 @@ export class AuctionService {
     this.users.update((users) => users.filter((u) => u.teamId !== teamId));
   }
 
-  createPlayer(playerData: Omit<Player, 'id'>) {
-    if (this.currentUser()?.role !== 'admin') return;
-    const newPlayerId = Math.max(...this.masterPlayerList().map(p => p.id), 0) + 1;
-    const newPlayer: Player = {
-        id: newPlayerId,
-        ...playerData
-    };
-    const sortFn = (a: Player, b: Player) => a.name.localeCompare(b.name);
-    this.masterPlayerList.update(players => [...players, newPlayer].sort(sortFn));
-    // Also add to available players to keep lists in sync during lobby phase.
-    // This fixes a bug where newly added players could not be deleted.
-    this.availablePlayers.update(players => [...players, newPlayer].sort(sortFn));
+  async createPlayer(playerData: Omit<Player, 'id'>) {
+  if (this.currentUser()?.role !== 'admin') return;
+
+  const newPlayerId = Math.max(...this.masterPlayerList().map(p => p.id), 0) + 1;
+  const newPlayer: Player = {
+    id: newPlayerId,
+    ...playerData,
+  };
+
+  const sortFn = (a: Player, b: Player) => a.name.localeCompare(b.name);
+
+  // Local state update
+  this.masterPlayerList.update(players => [...players, newPlayer].sort(sortFn));
+  this.availablePlayers.update(players => [...players, newPlayer].sort(sortFn));
+
+  // Firestore save
+  const db = this.firebase.db;
+  try {
+    await setDoc(doc(db, 'players', String(newPlayerId)), {
+      playerId: newPlayerId,
+      name: newPlayer.name,
+      role: newPlayer.role,
+    });
+  } catch (err) {
+    console.error('Error saving player to Firestore', err);
+    this.errorMessage.set('Player saved locally, but failed to sync with server.');
   }
+}
+  async updatePlayer(playerId: number, updatedData: Omit<Player, 'id'>) {
+  if (this.currentUser()?.role !== 'admin') return;
 
-  updatePlayer(playerId: number, updatedData: Omit<Player, 'id'>) {
-    if (this.currentUser()?.role !== 'admin') return;
+  const sortFn = (a: Player, b: Player) => a.name.localeCompare(b.name);
 
-    const sortFn = (a: Player, b: Player) => a.name.localeCompare(b.name);
-    
-    const updateInList = (players: Player[]) => {
-      const playerIndex = players.findIndex(p => p.id === playerId);
-      if (playerIndex > -1) {
-        players[playerIndex] = { ...players[playerIndex], ...updatedData };
-      }
-      return [...players].sort(sortFn);
-    };
-    
-    this.masterPlayerList.update(updateInList);
-    this.availablePlayers.update(updateInList);
+  const updateInList = (players: Player[]) => {
+    const playerIndex = players.findIndex(p => p.id === playerId);
+    if (playerIndex > -1) {
+      players[playerIndex] = { ...players[playerIndex], ...updatedData };
+    }
+    return [...players].sort(sortFn);
+  };
+
+  // Local update
+  this.masterPlayerList.update(updateInList);
+  this.availablePlayers.update(updateInList);
+
+  // Firestore update
+  const db = this.firebase.db;
+  try {
+    const playerRef = doc(db, 'players', String(playerId));
+    await updateDoc(playerRef, {
+      name: updatedData.name,
+      role: updatedData.role,
+    });
+  } catch (err) {
+    console.error('Error updating player in Firestore', err);
+    this.errorMessage.set('Player updated locally, but failed to sync with server.');
   }
+}
 
-  deletePlayer(playerId: number) {
-    if (this.currentUser()?.role !== 'admin') return;
+  async deletePlayer(playerId: number) {
+  if (this.currentUser()?.role !== 'admin') return;
 
-    // This is the fix: ensure both lists are updated to keep the state consistent.
-    // By removing from both, we ensure a deleted player is truly gone from the UI
-    // and from the pool of players available for the auction.
-    this.masterPlayerList.update(players => players.filter(p => p.id !== playerId));
-    this.availablePlayers.update(players => players.filter(p => p.id !== playerId));
+  // Local delete
+  this.masterPlayerList.update(players => players.filter(p => p.id !== playerId));
+  this.availablePlayers.update(players => players.filter(p => p.id !== playerId));
+
+  // Firestore delete
+  const db = this.firebase.db;
+  try {
+    await deleteDoc(doc(db, 'players', String(playerId)));
+  } catch (err) {
+    console.error('Error deleting player in Firestore', err);
+    this.errorMessage.set('Player removed locally, but failed to sync with server.');
   }
-
+}
 
   resetAuction() {
     if (this.currentUser()?.role !== 'admin') return;
