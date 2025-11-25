@@ -19,7 +19,9 @@ export type AuctionState =
   | 'admin_view'
   | 'team_view'
   | 'auction_ended';
+
 export type DraftAnnouncement = { player: Player; team: Team };
+
 const DEFAULT_PLAYERS: Player[] = [];
 
 @Injectable({
@@ -44,6 +46,8 @@ export class AuctionService {
   turnIndex = signal(0);
   isRolling = signal(false);
   errorMessage = signal<string | null>(null);
+
+  // Shared popup info (now driven by Firestore)
   lastDraftedPlayerInfo = signal<DraftAnnouncement | null>(null);
 
   // Undo functionality
@@ -191,7 +195,7 @@ export class AuctionService {
     }
   }
 
-  // ---------- REALTIME AUCTION STATE (ROUND, ORDER, TURN, PHASE) ----------
+  // ---------- REALTIME AUCTION STATE (ROUND, ORDER, TURN, PHASE, LAST DRAFT) ----------
 
   private initAuctionStateSync() {
     const db = this.firebase.db;
@@ -206,7 +210,10 @@ export class AuctionService {
           turnIndex: 0,
           isRolling: false,
           diceResultTeamId: null,
-          phase: 'lobby',         // new
+          phase: 'lobby',
+          lastDraftPlayerId: null,
+          lastDraftTeamId: null,
+          lastDraftAt: null,
         });
         return;
       }
@@ -222,6 +229,7 @@ export class AuctionService {
     this.isRolling.set(!!data.isRolling);
 
     const teams = this.teams();
+    const players = this.masterPlayerList();
 
     const roundOrderIds: number[] = data.roundOrderTeamIds ?? [];
     const roundOrderTeams = roundOrderIds
@@ -238,9 +246,25 @@ export class AuctionService {
 
     // phase sync
     this.auctionPhase.set((data.phase as any) ?? 'lobby');
+
+    // shared last draft popup sync
+    const lastPlayerId = data.lastDraftPlayerId as number | null | undefined;
+    const lastTeamId = data.lastDraftTeamId as number | null | undefined;
+
+    if (lastPlayerId != null && lastTeamId != null) {
+      const team = teams.find((t) => t.id === lastTeamId) ?? null;
+      const player = players.find((p) => p.id === lastPlayerId) ?? null;
+      if (team && player) {
+        this.lastDraftedPlayerInfo.set({ player, team });
+      } else {
+        this.lastDraftedPlayerInfo.set(null);
+      }
+    } else {
+      this.lastDraftedPlayerInfo.set(null);
+    }
   }
 
-  private async updateRemoteAuctionState() {
+  private async updateRemoteAuctionState(extra?: any) {
     const db = this.firebase.db;
     const stateRef = doc(db, 'auction', 'state');
 
@@ -253,7 +277,8 @@ export class AuctionService {
       turnIndex: this.turnIndex(),
       isRolling: this.isRolling(),
       diceResultTeamId: diceTeamId,
-      phase: this.auctionPhase(),    // new
+      phase: this.auctionPhase(),
+      ...(extra || {}),
     });
   }
 
@@ -417,11 +442,6 @@ export class AuctionService {
     });
 
     this.lastDraftAction.set({ player, teamId: pickingTeam.id });
-    // Announce the draft for the popup
-    this.lastDraftedPlayerInfo.set({ player, team: pickingTeam });
-    setTimeout(() => {
-        this.lastDraftedPlayerInfo.set(null);
-    }, 5000); // Popup is visible for 5 seconds
     this.turnIndex.update((index) => index + 1);
 
     const db = this.firebase.db;
@@ -434,7 +454,12 @@ export class AuctionService {
       console.error('Error updating player draft in Firestore', err);
     }
 
-    await this.updateRemoteAuctionState();
+    // 🔥 सर्व devices ला shared last draft event
+    await this.updateRemoteAuctionState({
+      lastDraftPlayerId: player.id,
+      lastDraftTeamId: pickingTeam.id,
+      lastDraftAt: Date.now(),
+    });
   }
 
   async nextRound() {
@@ -496,7 +521,12 @@ export class AuctionService {
       console.error('Error clearing player draft in Firestore', err);
     }
 
-    await this.updateRemoteAuctionState();
+    // Undo झाल्यावर shared popup clear
+    await this.updateRemoteAuctionState({
+      lastDraftPlayerId: null,
+      lastDraftTeamId: null,
+      lastDraftAt: null,
+    });
   }
 
   // ---------- TEAMS & USERS (ADMIN) ----------
@@ -718,6 +748,7 @@ export class AuctionService {
     this.isRolling.set(false);
     this.errorMessage.set(null);
     this.lastDraftAction.set(null);
+    this.lastDraftedPlayerInfo.set(null);
 
     this.auctionState.set('admin_lobby');
     this.auctionPhase.set('lobby');
@@ -742,7 +773,11 @@ export class AuctionService {
       console.error('Error clearing draftedToTeamId in Firestore', err);
     }
 
-    await this.updateRemoteAuctionState();
+    await this.updateRemoteAuctionState({
+      lastDraftPlayerId: null,
+      lastDraftTeamId: null,
+      lastDraftAt: null,
+    });
   }
 
   async stopAuction() {
