@@ -383,12 +383,13 @@ export class AuctionService {
     this.turnIndex.set(0);
     this.diceResult.set(null);
     this.isRolling.set(false);
-
+    this.lastDraftedPlayerInfo.set(null);
     this.auctionPhase.set('running');
     await this.updateRemoteAuctionState();
   }
 
   async rollForNextPick() {
+    this.lastDraftedPlayerInfo.set(null);
     const teamsInRound = this.roundOrder();
     const allTeams = this.teams();
 
@@ -425,28 +426,32 @@ export class AuctionService {
     }, 2500);
   }
 
-  async draftPlayer(player: Player) {
-    const pickingTeam = this.pickingTeam();
-    if (!pickingTeam || !this.isMyTurn()) return;
+async draftPlayer(player: Player) {
+  const pickingTeam = this.pickingTeam();
+  if (!pickingTeam || !this.isMyTurn()) return;
 
-    this.availablePlayers.update((players) =>
-      players.filter((p) => p.id !== player.id)
-    );
+  // 1) Local state update
+  this.availablePlayers.update((players) =>
+    players.filter((p) => p.id !== player.id)
+  );
 
-    this.teams.update((teams) => {
-      const teamIndex = teams.findIndex((t) => t.id === pickingTeam.id);
-      if (teamIndex > -1) {
-        teams[teamIndex].players.push(player);
-      }
-      return [...teams];
-    });
+  this.teams.update((teams) => {
+    const teamIndex = teams.findIndex((t) => t.id === pickingTeam.id);
+    if (teamIndex > -1) {
+      teams[teamIndex].players.push(player);
+    }
+    return [...teams];
+  });
 
-    this.lastDraftAction.set({ player, teamId: pickingTeam.id });
-    this.lastDraftedPlayerInfo.set({ player, team: pickingTeam });
-    // ⏱ 4 सेकंदांनी auto hide करा
+  // Undo साठी
+  this.lastDraftAction.set({ player, teamId: pickingTeam.id });
+
+  // 2) Popup साठी नवीन announcement सेट करा
+  this.lastDraftedPlayerInfo.set({ player, team: pickingTeam });
+
+  // 3) 4 सेकंदांनी auto-close (फक्त हा announcement अजूनही same असेल तर)
   setTimeout(() => {
     const current = this.lastDraftedPlayerInfo();
-    // हेच player/team अजून active असतील तरच null करा
     if (
       current &&
       current.player.id === player.id &&
@@ -455,18 +460,22 @@ export class AuctionService {
       this.lastDraftedPlayerInfo.set(null);
     }
   }, 4000);
-    this.turnIndex.update((index) => index + 1);
 
-    const db = this.firebase.db;
-    try {
-      const playerRef = doc(db, 'players', String(player.id));
-      await updateDoc(playerRef, {
-        draftedToTeamId: pickingTeam.id,
-      });
-    } catch (err) {
-      console.error('Error updating player draft in Firestore', err);
-    }
+  // 4) Turn पुढे सरकव
+  this.turnIndex.update((index) => index + 1);
 
+  // 5) Firestore मध्ये draft mark करा
+  const db = this.firebase.db;
+  try {
+    const playerRef = doc(db, 'players', String(player.id));
+    await updateDoc(playerRef, {
+      draftedToTeamId: pickingTeam.id,
+    });
+  } catch (err) {
+    console.error('Error updating player draft in Firestore', err);
+  }
+
+  // 6) Remote auction state अपडेट
     // 🔥 सर्व devices ला shared last draft event
     await this.updateRemoteAuctionState({
       lastDraftPlayerId: player.id,
@@ -486,6 +495,7 @@ export class AuctionService {
     ) {
       this.auctionState.set('auction_ended');
       this.auctionPhase.set('ended');
+      this.lastDraftedPlayerInfo.set(null);  
       await this.updateRemoteAuctionState();
       return;
     }
@@ -495,6 +505,7 @@ export class AuctionService {
     this.turnIndex.set(0);
     this.diceResult.set(null);
     this.lastDraftAction.set(null);
+    this.lastDraftedPlayerInfo.set(null);
 
     await this.updateRemoteAuctionState();
   }
@@ -762,7 +773,6 @@ export class AuctionService {
     this.errorMessage.set(null);
     this.lastDraftAction.set(null);
     this.lastDraftedPlayerInfo.set(null);
-
     this.auctionState.set('admin_lobby');
     this.auctionPhase.set('lobby');
 
@@ -797,6 +807,7 @@ export class AuctionService {
     if (this.currentUser()?.role !== 'admin') return;
     this.auctionState.set('auction_ended');
     this.auctionPhase.set('ended');
+    this.lastDraftedPlayerInfo.set(null);
     await this.updateRemoteAuctionState();
   }
 }
