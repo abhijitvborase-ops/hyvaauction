@@ -1,11 +1,24 @@
-
 import { Injectable, signal, computed, WritableSignal } from '@angular/core';
 import { Player, Team, User } from '../models';
 import { FirebaseService } from './firebase.service';
-import { collection, addDoc, getDocs, setDoc,
-  doc, updateDoc, deleteDoc, onSnapshot} from 'firebase/firestore';
+import {
+  collection,
+  addDoc,
+  getDocs,
+  setDoc,
+  doc,
+  updateDoc,
+  deleteDoc,
+  onSnapshot,
+} from 'firebase/firestore';
 
-export type AuctionState = 'login' | 'public_view' | 'admin_lobby' | 'admin_view' | 'team_view' | 'auction_ended';
+export type AuctionState =
+  | 'login'
+  | 'public_view'
+  | 'admin_lobby'
+  | 'admin_view'
+  | 'team_view'
+  | 'auction_ended';
 
 const DEFAULT_PLAYERS: Player[] = [];
 
@@ -15,7 +28,7 @@ const DEFAULT_PLAYERS: Player[] = [];
 export class AuctionService {
   readonly MAX_ROUNDS = 15;
   readonly TEAMS_PER_ROUND = 4;
-  
+
   // State Signals
   auctionState: WritableSignal<AuctionState> = signal('login');
   currentUser = signal<User | null>(null);
@@ -39,7 +52,6 @@ export class AuctionService {
   isRoundCompleted = computed(() => {
     const order = this.roundOrder();
     const turn = this.turnIndex();
-    // Round is completed when all teams in the order have picked.
     return order.length > 0 && turn >= order.length;
   });
 
@@ -51,7 +63,7 @@ export class AuctionService {
     }
     return order[turn];
   });
-  
+
   isMyTurn = computed(() => {
     const user = this.currentUser();
     const picking = this.pickingTeam();
@@ -66,16 +78,19 @@ export class AuctionService {
   constructor(private firebase: FirebaseService) {
     this.seedData();
     this.initData();
-    this.loadDataFromFirestore();  // Firestore मधून teams/users load
   }
-private async initData() {
+
+  // ---------- INITIAL LOAD & REALTIME SETUP ----------
+
+  private async initData() {
     await this.loadDataFromFirestore();   // teams/users/players load
-    this.initAuctionStateSync();          // मग shared auction state subscribe
+    this.initAuctionStateSync();          // auction state realtime
+    this.initPlayersSync();               // players + rosters realtime
   }
+
   private seedData() {
     this.masterPlayerList.set([...DEFAULT_PLAYERS]);
     this.availablePlayers.set([...this.masterPlayerList()]);
-    this.teams.set([]);
 
     const initialTeams: Team[] = [];
     this.teams.set(initialTeams);
@@ -83,9 +98,98 @@ private async initData() {
     const initialUsers: User[] = [
       { id: 1, username: 'admin', password: 'password', role: 'admin' },
     ];
-    this.users.set(initialUsers);    
+    this.users.set(initialUsers);
   }
-    private initAuctionStateSync() {
+
+  private async loadDataFromFirestore() {
+    const db = this.firebase.db;
+
+    try {
+      // ---- TEAMS ----
+      const teamsSnap = await getDocs(collection(db, 'teams'));
+      const loadedTeams: Team[] = [];
+      teamsSnap.forEach((docSnap) => {
+        const data = docSnap.data() as any;
+        loadedTeams.push({
+          id: data.teamId,
+          name: data.name,
+          owner: data.owner,
+          players: [],
+          captainRole: data.captainRole,
+          color: data.color ?? 'bg-gray-500',
+          logo: data.logo ?? 'star',
+        });
+      });
+
+      // ---- USERS ----
+      const usersSnap = await getDocs(collection(db, 'users'));
+      const existingUsers = this.users(); // seedData मधला admin
+      const loadedUsers: User[] = [...existingUsers];
+
+      usersSnap.forEach((docSnap) => {
+        const data = docSnap.data() as any;
+        loadedUsers.push({
+          id: data.userId,
+          username: data.username,
+          password: data.password,
+          role: data.role,
+          teamId: data.teamId,
+        });
+      });
+
+      // ---- PLAYERS ----
+      const playersSnap = await getDocs(collection(db, 'players'));
+      const loadedPlayers: Player[] = [];
+      const draftedMap = new Map<number, Player[]>();
+      const availablePlayers: Player[] = [];
+
+      playersSnap.forEach((docSnap) => {
+        const data = docSnap.data() as any;
+        const player: Player = {
+          id: data.playerId ?? Number(docSnap.id),
+          name: data.name,
+          role: data.role,
+        };
+        loadedPlayers.push(player);
+
+        const draftedToTeamId = data.draftedToTeamId as number | null | undefined;
+        if (draftedToTeamId) {
+          if (!draftedMap.has(draftedToTeamId)) {
+            draftedMap.set(draftedToTeamId, []);
+          }
+          draftedMap.get(draftedToTeamId)!.push(player);
+        } else {
+          availablePlayers.push(player);
+        }
+      });
+
+      const sortFn = (a: Player, b: Player) => a.name.localeCompare(b.name);
+
+      // teams + rosters सेट कर
+      const teamsWithPlayers: Team[] = loadedTeams.map((team) => ({
+        ...team,
+        players: (draftedMap.get(team.id) ?? []).sort(sortFn),
+      }));
+
+      this.teams.set(teamsWithPlayers);
+      this.users.set(loadedUsers);
+      this.masterPlayerList.set([...loadedPlayers].sort(sortFn));
+      this.availablePlayers.set([...availablePlayers].sort(sortFn));
+
+      console.log('Loaded from Firestore:', {
+        teams: loadedTeams.length,
+        users: loadedUsers.length,
+        players: loadedPlayers.length,
+      });
+    } catch (err) {
+      console.error('Error loading data from Firestore', err);
+      this.errorMessage.set('Could not load saved auction data.');
+    }
+  }
+
+  // ---------- REALTIME AUCTION STATE (ROUND, ORDER, TURN) ----------
+
+  private initAuctionStateSync() {
     const db = this.firebase.db;
     const stateRef = doc(db, 'auction', 'state');
 
@@ -106,22 +210,20 @@ private async initData() {
       this.applyRemoteAuctionState(data);
     });
   }
+
   private applyRemoteAuctionState(data: any) {
-    // 1) basic fields
     this.currentRound.set(data.currentRound ?? 1);
     this.turnIndex.set(data.turnIndex ?? 0);
     this.isRolling.set(!!data.isRolling);
 
     const teams = this.teams();
 
-    // 2) roundOrder (team IDs → Team[] मध्ये convert)
     const roundOrderIds: number[] = data.roundOrderTeamIds ?? [];
     const roundOrderTeams = roundOrderIds
       .map((id) => teams.find((t) => t.id === id) || null)
       .filter((t): t is Team => t !== null);
     this.roundOrder.set(roundOrderTeams);
 
-    // 3) diceResult
     if (data.diceResultTeamId != null) {
       const team = teams.find((t) => t.id === data.diceResultTeamId) ?? null;
       this.diceResult.set(team);
@@ -129,6 +231,7 @@ private async initData() {
       this.diceResult.set(null);
     }
   }
+
   private async updateRemoteAuctionState() {
     const db = this.firebase.db;
     const stateRef = doc(db, 'auction', 'state');
@@ -145,71 +248,60 @@ private async initData() {
     });
   }
 
-  private async loadDataFromFirestore() {
+  // ---------- REALTIME PLAYERS + ROSTERS ----------
+
+  private initPlayersSync() {
     const db = this.firebase.db;
+    const playersRef = collection(db, 'players');
 
-    try {
-      // TEAMS
-      const teamsSnap = await getDocs(collection(db, 'teams'));
-      const loadedTeams: Team[] = [];
-      teamsSnap.forEach((docSnap) => {
+    onSnapshot(playersRef, (snap) => {
+      const loadedPlayers: Player[] = [];
+      const draftedMap = new Map<number, Player[]>();
+      const availablePlayers: Player[] = [];
+
+      snap.forEach((docSnap) => {
         const data = docSnap.data() as any;
-        loadedTeams.push({
-          id: data.teamId,
+        const player: Player = {
+          id: data.playerId ?? Number(docSnap.id),
           name: data.name,
-          owner: data.owner,
-          players: [], // players नंतर sync करू
-          captainRole: data.captainRole,
-          color: data.color ?? 'bg-gray-500',
-          logo: data.logo ?? 'star',
-        });
-      });
-
-      // USERS (admin + Firestore)
-      const usersSnap = await getDocs(collection(db, 'users'));
-      const existingUsers = this.users(); // admin already inside
-      const loadedUsers: User[] = [...existingUsers];
-
-      usersSnap.forEach((docSnap) => {
-        const data = docSnap.data() as any;
-        loadedUsers.push({
-          id: data.userId,
-          username: data.username,
-          password: data.password,
           role: data.role,
-          teamId: data.teamId,
-        });
-      });
-       // ---- PLAYERS ----
-    const playersSnap = await getDocs(collection(db, 'players'));
-    const loadedPlayers: Player[] = [];
-    playersSnap.forEach((docSnap) => {
-      const data = docSnap.data() as any;
-      loadedPlayers.push({
-        id: data.playerId ?? Number(docSnap.id),
-        name: data.name,
-        role: data.role,
-      } as Player);
-    });
-  const sortFn = (a: Player, b: Player) => a.name.localeCompare(b.name);
-      this.teams.set(loadedTeams);
-      this.users.set(loadedUsers);
-      this.masterPlayerList.set([...loadedPlayers].sort(sortFn));
-      this.availablePlayers.set([...loadedPlayers].sort(sortFn));
+        };
+        loadedPlayers.push(player);
 
-      console.log('Loaded from Firestore:', {
-        teams: loadedTeams.length,
-        users: loadedUsers.length,
-        players: loadedPlayers.length,
+        const draftedToTeamId = data.draftedToTeamId as number | null | undefined;
+
+        if (draftedToTeamId) {
+          if (!draftedMap.has(draftedToTeamId)) {
+            draftedMap.set(draftedToTeamId, []);
+          }
+          draftedMap.get(draftedToTeamId)!.push(player);
+        } else {
+          availablePlayers.push(player);
+        }
       });
-    } catch (err) {
-      console.error('Error loading data from Firestore', err);
-      this.errorMessage.set('Could not load saved auction data.');
-    }
+
+      const sortFn = (a: Player, b: Player) => a.name.localeCompare(b.name);
+
+      // Teams मध्ये players भरणे
+      this.teams.update((currentTeams) =>
+        currentTeams.map((t) => ({
+          ...t,
+          players: (draftedMap.get(t.id) ?? []).sort(sortFn),
+        }))
+      );
+
+      // master + available lists
+      this.masterPlayerList.set([...loadedPlayers].sort(sortFn));
+      this.availablePlayers.set([...availablePlayers].sort(sortFn));
+    });
   }
 
+  // ---------- AUTH & BASIC VIEW STATE ----------
+
   login(username: string, password?: string) {
-    const user = this.users().find(u => u.username === username && u.password === password);
+    const user = this.users().find(
+      (u) => u.username === username && u.password === password
+    );
     if (user) {
       this.currentUser.set(user);
       if (user.role === 'admin') {
@@ -235,11 +327,13 @@ private async initData() {
   returnToLogin() {
     this.auctionState.set('login');
   }
-    async startAuction() {
+
+  // ---------- AUCTION FLOW ----------
+
+  async startAuction() {
     if (this.currentUser()?.role !== 'admin') return;
     this.auctionState.set('admin_view');
 
-    // round, order, turn reset करून remote ला sync
     this.currentRound.set(1);
     this.roundOrder.set([]);
     this.turnIndex.set(0);
@@ -249,7 +343,7 @@ private async initData() {
     await this.updateRemoteAuctionState();
   }
 
-    async rollForNextPick() {
+  async rollForNextPick() {
     const teamsInRound = this.roundOrder();
     const allTeams = this.teams();
 
@@ -262,7 +356,7 @@ private async initData() {
     }
 
     this.isRolling.set(true);
-    await this.updateRemoteAuctionState(); // rolling सुरू झालं हे पण share कर
+    await this.updateRemoteAuctionState();
 
     const availableToPick = allTeams.filter(
       (t) => !teamsInRound.find((inRound) => inRound.id === t.id)
@@ -285,16 +379,16 @@ private async initData() {
       await this.updateRemoteAuctionState();
     }, 2500);
   }
-    async draftPlayer(player: Player) {
+
+  async draftPlayer(player: Player) {
     const pickingTeam = this.pickingTeam();
     if (!pickingTeam || !this.isMyTurn()) return;
 
-    // Remove from available players (local)
+    // Local state – optional (Firestore snapshot तरी लगेच update करेल)
     this.availablePlayers.update((players) =>
       players.filter((p) => p.id !== player.id)
     );
 
-    // Add to team (local)
     this.teams.update((teams) => {
       const teamIndex = teams.findIndex((t) => t.id === pickingTeam.id);
       if (teamIndex > -1) {
@@ -303,11 +397,19 @@ private async initData() {
       return [...teams];
     });
 
-    // last draft
     this.lastDraftAction.set({ player, teamId: pickingTeam.id });
-
-    // Move to next turn
     this.turnIndex.update((index) => index + 1);
+
+    // Firestore मध्ये mark करा
+    const db = this.firebase.db;
+    try {
+      const playerRef = doc(db, 'players', String(player.id));
+      await updateDoc(playerRef, {
+        draftedToTeamId: pickingTeam.id,
+      });
+    } catch (err) {
+      console.error('Error updating player draft in Firestore', err);
+    }
 
     await this.updateRemoteAuctionState();
   }
@@ -343,28 +445,40 @@ private async initData() {
 
     const { player, teamId } = lastAction;
 
-    // Remove player from the team
-    this.teams.update(teams => {
-      const teamIndex = teams.findIndex(t => t.id === teamId);
+    this.teams.update((teams) => {
+      const teamIndex = teams.findIndex((t) => t.id === teamId);
       if (teamIndex > -1) {
-        teams[teamIndex].players = teams[teamIndex].players.filter(p => p.id !== player.id);
+        teams[teamIndex].players = teams[teamIndex].players.filter(
+          (p) => p.id !== player.id
+        );
       }
       return [...teams];
     });
 
-    // Add player back to available players and sort by ID to maintain order
-    this.availablePlayers.update(players => 
+    this.availablePlayers.update((players) =>
       [...players, player].sort((a, b) => a.id - b.id)
     );
 
-    // Decrement the turn index to revert the turn
-    this.turnIndex.update(index => index - 1);
-    
-    // Clear the last action so it can't be undone again
+    this.turnIndex.update((index) => index - 1);
     this.lastDraftAction.set(null);
+
+    // Firestore मधून draft clear
+    const db = this.firebase.db;
+    try {
+      const playerRef = doc(db, 'players', String(player.id));
+      await updateDoc(playerRef, {
+        draftedToTeamId: null,
+      });
+    } catch (err) {
+      console.error('Error clearing player draft in Firestore', err);
+    }
+
     await this.updateRemoteAuctionState();
   }
-   async createTeamOwner(
+
+  // ---------- TEAMS & USERS (ADMIN) ----------
+
+  async createTeamOwner(
     teamName: string,
     ownerName: string,
     username: string,
@@ -373,8 +487,7 @@ private async initData() {
   ) {
     if (this.currentUser()?.role !== 'admin') return;
 
-    // 1) आधीसारखंच local state मध्ये add कर
-    const newTeamId = Math.max(...this.teams().map(t => t.id), 0) + 1;
+    const newTeamId = Math.max(...this.teams().map((t) => t.id), 0) + 1;
     const newTeam: Team = {
       id: newTeamId,
       name: teamName,
@@ -382,27 +495,25 @@ private async initData() {
       players: [],
       captainRole: captainRole,
       color: 'bg-gray-500',
-      logo: 'star'
+      logo: 'star',
     };
-    this.teams.update(teams => [...teams, newTeam]);
+    this.teams.update((teams) => [...teams, newTeam]);
 
-    const newUserId = Math.max(...this.users().map(u => u.id), 0) + 1;
+    const newUserId = Math.max(...this.users().map((u) => u.id), 0) + 1;
     const newUser: User = {
       id: newUserId,
       username: username,
-      password: password,     // NOTE: plain text पासवर्ड – नंतर secure करू
+      password: password,
       role: 'team_owner',
-      teamId: newTeamId
+      teamId: newTeamId,
     };
-    this.users.update(users => [...users, newUser]);
+    this.users.update((users) => [...users, newUser]);
 
-    // 2) Firestore मध्ये टीम आणि यूजर save कर
     try {
       const db = this.firebase.db;
 
-      // teams collection
       await addDoc(collection(db, 'teams'), {
-        teamId: newTeamId,   // नंबर id वेगळा field मध्ये ठेवतोय
+        teamId: newTeamId,
         name: teamName,
         owner: ownerName,
         captainRole,
@@ -410,21 +521,19 @@ private async initData() {
         logo: 'star',
       });
 
-      // users collection
       await addDoc(collection(db, 'users'), {
         userId: newUserId,
         username,
-        password,            // plain text – उत्पादनात hashing गरजेचं
+        password,
         role: 'team_owner',
         teamId: newTeamId,
       });
-
     } catch (err) {
       console.error('Error saving team owner to Firestore', err);
-      // हव्यास तर इथे errorMessage signal set करू शकतोस
       this.errorMessage.set('Saved locally but failed to sync with server.');
     }
   }
+
   updateTeamOwner(
     teamId: number,
     updatedData: {
@@ -436,7 +545,6 @@ private async initData() {
   ) {
     if (this.currentUser()?.role !== 'admin') return;
 
-    // Update team details
     this.teams.update((teams) => {
       const teamIndex = teams.findIndex((t) => t.id === teamId);
       if (teamIndex > -1) {
@@ -449,7 +557,6 @@ private async initData() {
       return [...teams];
     });
 
-    // Update user details
     this.users.update((users) => {
       const userIndex = users.findIndex((u) => u.teamId === teamId);
       if (userIndex > -1) {
@@ -457,7 +564,6 @@ private async initData() {
           ...users[userIndex],
           username: updatedData.username,
         };
-        // Only update password if a new one is provided
         if (updatedData.password) {
           users[userIndex].password = updatedData.password;
         }
@@ -469,108 +575,119 @@ private async initData() {
   deleteTeamOwner(teamId: number) {
     if (this.currentUser()?.role !== 'admin') return;
 
-    const teamToDelete = this.teams().find(t => t.id === teamId);
+    const teamToDelete = this.teams().find((t) => t.id === teamId);
     if (teamToDelete) {
-        // Return the team's players to the available pool. They are still in the master list.
-        const playersToReturn = teamToDelete.players;
-        const sortFn = (a: Player, b: Player) => a.name.localeCompare(b.name);
-        this.availablePlayers.update(current => [...current, ...playersToReturn].sort(sortFn));
+      const playersToReturn = teamToDelete.players;
+      const sortFn = (a: Player, b: Player) => a.name.localeCompare(b.name);
+      this.availablePlayers.update((current) =>
+        [...current, ...playersToReturn].sort(sortFn)
+      );
     }
 
-    // Remove team
     this.teams.update((teams) => teams.filter((t) => t.id !== teamId));
-
-    // Remove user associated with the team
     this.users.update((users) => users.filter((u) => u.teamId !== teamId));
   }
 
+  // ---------- PLAYERS (ADMIN) ----------
+
   async createPlayer(playerData: Omit<Player, 'id'>) {
-  if (this.currentUser()?.role !== 'admin') return;
-
-  const newPlayerId = Math.max(...this.masterPlayerList().map(p => p.id), 0) + 1;
-  const newPlayer: Player = {
-    id: newPlayerId,
-    ...playerData,
-  };
-
-  const sortFn = (a: Player, b: Player) => a.name.localeCompare(b.name);
-
-  // Local state update
-  this.masterPlayerList.update(players => [...players, newPlayer].sort(sortFn));
-  this.availablePlayers.update(players => [...players, newPlayer].sort(sortFn));
-
-  // Firestore save
-  const db = this.firebase.db;
-  try {
-    await setDoc(doc(db, 'players', String(newPlayerId)), {
-      playerId: newPlayerId,
-      name: newPlayer.name,
-      role: newPlayer.role,
-    });
-  } catch (err) {
-    console.error('Error saving player to Firestore', err);
-    this.errorMessage.set('Player saved locally, but failed to sync with server.');
-  }
-}
-  async updatePlayer(playerId: number, updatedData: Omit<Player, 'id'>) {
-  if (this.currentUser()?.role !== 'admin') return;
-
-  const sortFn = (a: Player, b: Player) => a.name.localeCompare(b.name);
-
-  const updateInList = (players: Player[]) => {
-    const playerIndex = players.findIndex(p => p.id === playerId);
-    if (playerIndex > -1) {
-      players[playerIndex] = { ...players[playerIndex], ...updatedData };
-    }
-    return [...players].sort(sortFn);
-  };
-
-  // Local update
-  this.masterPlayerList.update(updateInList);
-  this.availablePlayers.update(updateInList);
-
-  // Firestore update
-  const db = this.firebase.db;
-  try {
-    const playerRef = doc(db, 'players', String(playerId));
-    await updateDoc(playerRef, {
-      name: updatedData.name,
-      role: updatedData.role,
-    });
-  } catch (err) {
-    console.error('Error updating player in Firestore', err);
-    this.errorMessage.set('Player updated locally, but failed to sync with server.');
-  }
-}
-
-  async deletePlayer(playerId: number) {
-  if (this.currentUser()?.role !== 'admin') return;
-
-  // Local delete
-  this.masterPlayerList.update(players => players.filter(p => p.id !== playerId));
-  this.availablePlayers.update(players => players.filter(p => p.id !== playerId));
-
-  // Firestore delete
-  const db = this.firebase.db;
-  try {
-    await deleteDoc(doc(db, 'players', String(playerId)));
-  } catch (err) {
-    console.error('Error deleting player in Firestore', err);
-    this.errorMessage.set('Player removed locally, but failed to sync with server.');
-  }
-}
-  async resetAuction() {
     if (this.currentUser()?.role !== 'admin') return;
-  
-    // Reset each team's roster to be empty
-    this.teams.update(currentTeams => 
-        currentTeams.map(team => ({...team, players: []}))
+
+    const newPlayerId =
+      Math.max(...this.masterPlayerList().map((p) => p.id), 0) + 1;
+    const newPlayer: Player = {
+      id: newPlayerId,
+      ...playerData,
+    };
+
+    const sortFn = (a: Player, b: Player) => a.name.localeCompare(b.name);
+
+    this.masterPlayerList.update((players) =>
+      [...players, newPlayer].sort(sortFn)
+    );
+    this.availablePlayers.update((players) =>
+      [...players, newPlayer].sort(sortFn)
     );
 
-    // Available players are everyone from the master list
+    const db = this.firebase.db;
+    try {
+      await setDoc(doc(db, 'players', String(newPlayerId)), {
+        playerId: newPlayerId,
+        name: newPlayer.name,
+        role: newPlayer.role,
+        draftedToTeamId: null,
+      });
+    } catch (err) {
+      console.error('Error saving player to Firestore', err);
+      this.errorMessage.set(
+        'Player saved locally, but failed to sync with server.'
+      );
+    }
+  }
+
+  async updatePlayer(playerId: number, updatedData: Omit<Player, 'id'>) {
+    if (this.currentUser()?.role !== 'admin') return;
+
+    const sortFn = (a: Player, b: Player) => a.name.localeCompare(b.name);
+
+    const updateInList = (players: Player[]) => {
+      const playerIndex = players.findIndex((p) => p.id === playerId);
+      if (playerIndex > -1) {
+        players[playerIndex] = { ...players[playerIndex], ...updatedData };
+      }
+      return [...players].sort(sortFn);
+    };
+
+    this.masterPlayerList.update(updateInList);
+    this.availablePlayers.update(updateInList);
+
+    const db = this.firebase.db;
+    try {
+      const playerRef = doc(db, 'players', String(playerId));
+      await updateDoc(playerRef, {
+        name: updatedData.name,
+        role: updatedData.role,
+      });
+    } catch (err) {
+      console.error('Error updating player in Firestore', err);
+      this.errorMessage.set(
+        'Player updated locally, but failed to sync with server.'
+      );
+    }
+  }
+
+  async deletePlayer(playerId: number) {
+    if (this.currentUser()?.role !== 'admin') return;
+
+    this.masterPlayerList.update((players) =>
+      players.filter((p) => p.id !== playerId)
+    );
+    this.availablePlayers.update((players) =>
+      players.filter((p) => p.id !== playerId)
+    );
+
+    const db = this.firebase.db;
+    try {
+      await deleteDoc(doc(db, 'players', String(playerId)));
+    } catch (err) {
+      console.error('Error deleting player in Firestore', err);
+      this.errorMessage.set(
+        'Player removed locally, but failed to sync with server.'
+      );
+    }
+  }
+
+  // ---------- RESET / STOP ----------
+
+  async resetAuction() {
+    if (this.currentUser()?.role !== 'admin') return;
+
+    this.teams.update((currentTeams) =>
+      currentTeams.map((team) => ({ ...team, players: [] }))
+    );
+
     this.availablePlayers.set([...this.masterPlayerList()]);
-  
-    // Reset auction flow state
+
     this.currentRound.set(1);
     this.diceResult.set(null);
     this.roundOrder.set([]);
@@ -578,9 +695,29 @@ private async initData() {
     this.isRolling.set(false);
     this.errorMessage.set(null);
     this.lastDraftAction.set(null);
-    
-    // Return admin to the lobby to start a new auction
+
     this.auctionState.set('admin_lobby');
+
+    // Firestore मधून सगळ्या players चे draftedToTeamId clear
+    const db = this.firebase.db;
+    try {
+      const snap = await getDocs(collection(db, 'players'));
+      const updates: Promise<any>[] = [];
+      snap.forEach((docSnap) => {
+        const data = docSnap.data() as any;
+        if (data.draftedToTeamId) {
+          updates.push(
+            updateDoc(doc(db, 'players', docSnap.id), {
+              draftedToTeamId: null,
+            })
+          );
+        }
+      });
+      await Promise.all(updates);
+    } catch (err) {
+      console.error('Error clearing draftedToTeamId in Firestore', err);
+    }
+
     await this.updateRemoteAuctionState();
   }
 

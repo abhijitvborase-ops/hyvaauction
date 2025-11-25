@@ -152,7 +152,7 @@ private buildExportRows(scope: 'all' | 'mine'): { team: string; owner: string; p
   }
   
   onLogin() {
-    this.auctionService.login(this.loginUsername, this.loginPassword);
+     this.auctionService.login(this.loginUsername, this.loginPassword);
   }
 
   onEnterPublicView() {
