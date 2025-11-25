@@ -8,6 +8,11 @@ import { AuctionService } from './services/auction.service';
 import { DiceComponent } from './components/dice/dice.component';
 import { Player, Team, User } from './models';
 
+import * as XLSX from 'xlsx';
+import html2canvas from 'html2canvas';
+import { ViewChild, ElementRef } from '@angular/core';
+
+
 declare var lucide: any;
 
 @Component({
@@ -20,7 +25,85 @@ declare var lucide: any;
 export class AppComponent implements OnInit {
   auctionService = inject(AuctionService);
     firebase = inject(FirebaseService);
+    @ViewChild('exportTable') exportTable!: ElementRef;
 
+private buildExportRows(scope: 'all' | 'mine'): { team: string; owner: string; player: string; role: string }[] {
+    const teams = this.auctionService.teams();
+    const currentUser = this.auctionService.currentUser();
+
+    let filteredTeams = teams;
+
+    // team owner असेल तर त्याला फक्त स्वतःची team
+    if (scope === 'mine' && currentUser && currentUser.role === 'team_owner' && currentUser.teamId) {
+      filteredTeams = teams.filter(t => t.id === currentUser.teamId);
+    }
+
+    const rows: { team: string; owner: string; player: string; role: string }[] = [];
+
+    for (const team of filteredTeams) {
+      for (const player of team.players) {
+        rows.push({
+          team: team.name,
+          owner: team.owner,
+          player: player.name,
+          role: player.role,
+        });
+      }
+    }
+
+    return rows;
+  }
+    exportDraftToExcelAll() {
+    const rows = this.buildExportRows('all');
+    this.exportRowsToExcel(rows, 'auction_draft_all_teams');
+  }
+
+  exportDraftToExcelMine() {
+    const rows = this.buildExportRows('mine');
+    this.exportRowsToExcel(rows, 'auction_draft_my_team');
+  }
+
+  private exportRowsToExcel(
+    rows: { team: string; owner: string; player: string; role: string }[],
+    fileName: string
+  ) {
+    if (!rows.length) {
+      alert('Export करण्यासाठी players नाहीत.');
+      return;
+    }
+
+    const header = ['Team', 'Owner', 'Player', 'Role'];
+    const data = rows.map(r => [r.team, r.owner, r.player, r.role]);
+
+    const worksheet = XLSX.utils.aoa_to_sheet([header, ...data]);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Draft');
+
+    XLSX.writeFile(workbook, `${fileName}.xlsx`);
+  }
+  async exportDraftToPng() {
+    if (!this.exportTable) {
+      alert('Export table सापडली नाही.');
+      return;
+    }
+
+    const element = this.exportTable.nativeElement as HTMLElement;
+
+    const canvas = await html2canvas(element, {
+      scale: 2,         // थोडा जास्त quality
+      useCORS: true,
+    });
+
+    canvas.toBlob((blob) => {
+      if (!blob) return;
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'auction_draft.png';
+      link.click();
+      URL.revokeObjectURL(url);
+    });
+  }
   // Form signals for login
   loginUsername = signal('');
   loginPassword = signal('');
