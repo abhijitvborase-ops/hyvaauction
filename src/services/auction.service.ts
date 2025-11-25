@@ -19,7 +19,7 @@ export type AuctionState =
   | 'admin_view'
   | 'team_view'
   | 'auction_ended';
-
+export type DraftAnnouncement = { player: Player; team: Team };
 const DEFAULT_PLAYERS: Player[] = [];
 
 @Injectable({
@@ -44,6 +44,7 @@ export class AuctionService {
   turnIndex = signal(0);
   isRolling = signal(false);
   errorMessage = signal<string | null>(null);
+  lastDraftedPlayerInfo = signal<DraftAnnouncement | null>(null);
 
   // Undo functionality
   lastDraftAction = signal<{ player: Player; teamId: number } | null>(null);
@@ -416,6 +417,11 @@ export class AuctionService {
     });
 
     this.lastDraftAction.set({ player, teamId: pickingTeam.id });
+    // Announce the draft for the popup
+    this.lastDraftedPlayerInfo.set({ player, team: pickingTeam });
+    setTimeout(() => {
+        this.lastDraftedPlayerInfo.set(null);
+    }, 5000); // Popup is visible for 5 seconds
     this.turnIndex.update((index) => index + 1);
 
     const db = this.firebase.db;

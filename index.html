@@ -18,6 +18,14 @@
             roll: {
               '0%': { transform: 'rotateX(0deg) rotateY(0deg) rotateZ(0deg)' },
               '100%': { transform: 'rotateX(720deg) rotateY(1080deg) rotateZ(360deg)' },
+            },
+            'fade-in': {
+              'from': { opacity: 0 },
+              'to': { opacity: 1 },
+            },
+            'scale-up': {
+                'from': { transform: 'scale(0.9)', opacity: 0 },
+                'to': { transform: 'scale(1)', opacity: 1 },
             }
           }
         }
@@ -25,6 +33,7 @@
     }
   </script>
   <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script type="importmap">
 {
   "imports": {

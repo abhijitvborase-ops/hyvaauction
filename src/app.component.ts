@@ -317,4 +317,12 @@ private buildExportRows(scope: 'all' | 'mine'): { team: string; owner: string; p
       case 'Technician': return 'bg-yellow-500 text-yellow-100';
     }
   }
+  getBgColor(borderColor: string): string {
+    return borderColor.replace('border-', 'bg-');
+  }
+
+  getTextColor(borderColor: string): string {
+    if (!borderColor) return 'text-gray-100';
+    return borderColor.replace('border-', 'text-');
+  }
 }
