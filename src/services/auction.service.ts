@@ -24,6 +24,9 @@ export type DraftAnnouncement = { player: Player; team: Team };
 
 const DEFAULT_PLAYERS: Player[] = [];
 
+// popup किती वेळ दिसायला हवा (ms)
+const DRAFT_POPUP_DURATION_MS = 5000;
+
 @Injectable({
   providedIn: 'root',
 })
@@ -47,7 +50,7 @@ export class AuctionService {
   isRolling = signal(false);
   errorMessage = signal<string | null>(null);
 
-  // Shared popup info (now driven by Firestore)
+  // Shared popup info (driven by Firestore)
   lastDraftedPlayerInfo = signal<DraftAnnouncement | null>(null);
 
   // Undo functionality
@@ -55,6 +58,9 @@ export class AuctionService {
 
   // Auction global phase (shared across devices)
   auctionPhase = signal<'lobby' | 'running' | 'ended'>('lobby');
+
+  // popup auto-hide साठी local timeout
+  private lastDraftTimeout: any = null;
 
   // Computed Signals
   isRoundCompleted = computed(() => {
@@ -247,17 +253,45 @@ export class AuctionService {
     // phase sync
     this.auctionPhase.set((data.phase as any) ?? 'lobby');
 
-    // shared last draft popup sync
+    // --- shared last draft popup sync + auto-hide ---
     const lastPlayerId = data.lastDraftPlayerId as number | null | undefined;
     const lastTeamId = data.lastDraftTeamId as number | null | undefined;
+    const lastDraftAt = data.lastDraftAt as number | null | undefined;
 
-    if (lastPlayerId != null && lastTeamId != null) {
+    // आधीचा timeout clear करा
+    if (this.lastDraftTimeout) {
+      clearTimeout(this.lastDraftTimeout);
+      this.lastDraftTimeout = null;
+    }
+
+    if (
+      lastPlayerId != null &&
+      lastTeamId != null &&
+      lastDraftAt != null
+    ) {
       const team = teams.find((t) => t.id === lastTeamId) ?? null;
       const player = players.find((p) => p.id === lastPlayerId) ?? null;
-      if (team && player) {
-        this.lastDraftedPlayerInfo.set({ player, team });
-      } else {
+
+      if (!team || !player) {
         this.lastDraftedPlayerInfo.set(null);
+        return;
+      }
+
+      const now = Date.now();
+      const age = now - lastDraftAt;
+
+      if (age >= DRAFT_POPUP_DURATION_MS) {
+        // popup window already over – दाखवू नको
+        this.lastDraftedPlayerInfo.set(null);
+      } else {
+        // अजून window मध्ये आहे – popup दाखव
+        this.lastDraftedPlayerInfo.set({ player, team });
+
+        const remaining = DRAFT_POPUP_DURATION_MS - age;
+        this.lastDraftTimeout = setTimeout(() => {
+          this.lastDraftedPlayerInfo.set(null);
+          this.lastDraftTimeout = null;
+        }, remaining);
       }
     } else {
       this.lastDraftedPlayerInfo.set(null);
@@ -385,11 +419,18 @@ export class AuctionService {
     this.isRolling.set(false);
     this.lastDraftedPlayerInfo.set(null);
     this.auctionPhase.set('running');
-    await this.updateRemoteAuctionState();
+
+    await this.updateRemoteAuctionState({
+      lastDraftPlayerId: null,
+      lastDraftTeamId: null,
+      lastDraftAt: null,
+    });
   }
 
   async rollForNextPick() {
+    // मागचा popup force बंद (local + remote)
     this.lastDraftedPlayerInfo.set(null);
+
     const teamsInRound = this.roundOrder();
     const allTeams = this.teams();
 
@@ -402,7 +443,11 @@ export class AuctionService {
     }
 
     this.isRolling.set(true);
-    await this.updateRemoteAuctionState();
+    await this.updateRemoteAuctionState({
+      lastDraftPlayerId: null,
+      lastDraftTeamId: null,
+      lastDraftAt: null,
+    });
 
     const availableToPick = allTeams.filter(
       (t) => !teamsInRound.find((inRound) => inRound.id === t.id)
@@ -426,56 +471,41 @@ export class AuctionService {
     }, 2500);
   }
 
-async draftPlayer(player: Player) {
-  const pickingTeam = this.pickingTeam();
-  if (!pickingTeam || !this.isMyTurn()) return;
+  async draftPlayer(player: Player) {
+    const pickingTeam = this.pickingTeam();
+    if (!pickingTeam || !this.isMyTurn()) return;
 
-  // 1) Local state update
-  this.availablePlayers.update((players) =>
-    players.filter((p) => p.id !== player.id)
-  );
+    // 1) Local state update
+    this.availablePlayers.update((players) =>
+      players.filter((p) => p.id !== player.id)
+    );
 
-  this.teams.update((teams) => {
-    const teamIndex = teams.findIndex((t) => t.id === pickingTeam.id);
-    if (teamIndex > -1) {
-      teams[teamIndex].players.push(player);
-    }
-    return [...teams];
-  });
-
-  // Undo साठी
-  this.lastDraftAction.set({ player, teamId: pickingTeam.id });
-
-  // 2) Popup साठी नवीन announcement सेट करा
-  this.lastDraftedPlayerInfo.set({ player, team: pickingTeam });
-
-  // 3) 4 सेकंदांनी auto-close (फक्त हा announcement अजूनही same असेल तर)
-  setTimeout(() => {
-    const current = this.lastDraftedPlayerInfo();
-    if (
-      current &&
-      current.player.id === player.id &&
-      current.team.id === pickingTeam.id
-    ) {
-      this.lastDraftedPlayerInfo.set(null);
-    }
-  }, 4000);
-
-  // 4) Turn पुढे सरकव
-  this.turnIndex.update((index) => index + 1);
-
-  // 5) Firestore मध्ये draft mark करा
-  const db = this.firebase.db;
-  try {
-    const playerRef = doc(db, 'players', String(player.id));
-    await updateDoc(playerRef, {
-      draftedToTeamId: pickingTeam.id,
+    this.teams.update((teams) => {
+      const teamIndex = teams.findIndex((t) => t.id === pickingTeam.id);
+      if (teamIndex > -1) {
+        teams[teamIndex].players.push(player);
+      }
+      return [...teams];
     });
-  } catch (err) {
-    console.error('Error updating player draft in Firestore', err);
-  }
 
-  // 6) Remote auction state अपडेट
+    // Undo साठी
+    this.lastDraftAction.set({ player, teamId: pickingTeam.id });
+
+    // (local popup set करण्याची गरज नाही – snapshot मधून येईल)
+    // Turn पुढे सरकव
+    this.turnIndex.update((index) => index + 1);
+
+    // Firestore मध्ये draft mark करा
+    const db = this.firebase.db;
+    try {
+      const playerRef = doc(db, 'players', String(player.id));
+      await updateDoc(playerRef, {
+        draftedToTeamId: pickingTeam.id,
+      });
+    } catch (err) {
+      console.error('Error updating player draft in Firestore', err);
+    }
+
     // 🔥 सर्व devices ला shared last draft event
     await this.updateRemoteAuctionState({
       lastDraftPlayerId: player.id,
@@ -495,8 +525,12 @@ async draftPlayer(player: Player) {
     ) {
       this.auctionState.set('auction_ended');
       this.auctionPhase.set('ended');
-      this.lastDraftedPlayerInfo.set(null);  
-      await this.updateRemoteAuctionState();
+      this.lastDraftedPlayerInfo.set(null);
+      await this.updateRemoteAuctionState({
+        lastDraftPlayerId: null,
+        lastDraftTeamId: null,
+        lastDraftAt: null,
+      });
       return;
     }
 
@@ -507,7 +541,11 @@ async draftPlayer(player: Player) {
     this.lastDraftAction.set(null);
     this.lastDraftedPlayerInfo.set(null);
 
-    await this.updateRemoteAuctionState();
+    await this.updateRemoteAuctionState({
+      lastDraftPlayerId: null,
+      lastDraftTeamId: null,
+      lastDraftAt: null,
+    });
   }
 
   async undoLastDraft() {
@@ -808,6 +846,10 @@ async draftPlayer(player: Player) {
     this.auctionState.set('auction_ended');
     this.auctionPhase.set('ended');
     this.lastDraftedPlayerInfo.set(null);
-    await this.updateRemoteAuctionState();
+    await this.updateRemoteAuctionState({
+      lastDraftPlayerId: null,
+      lastDraftTeamId: null,
+      lastDraftAt: null,
+    });
   }
 }
