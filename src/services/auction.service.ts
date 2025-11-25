@@ -3,9 +3,7 @@ import { Injectable, signal, computed, WritableSignal } from '@angular/core';
 import { Player, Team, User } from '../models';
 import { FirebaseService } from './firebase.service';
 import { collection, addDoc, getDocs, setDoc,
-  doc,
-  updateDoc,
-  deleteDoc,onSnapshot,} from 'firebase/firestore';
+  doc, updateDoc, deleteDoc, onSnapshot} from 'firebase/firestore';
 
 export type AuctionState = 'login' | 'public_view' | 'admin_lobby' | 'admin_view' | 'team_view' | 'auction_ended';
 
@@ -77,7 +75,6 @@ private async initData() {
   private seedData() {
     this.masterPlayerList.set([...DEFAULT_PLAYERS]);
     this.availablePlayers.set([...this.masterPlayerList()]);
-
     this.teams.set([]);
 
     const initialTeams: Team[] = [];
@@ -238,7 +235,6 @@ private async initData() {
   returnToLogin() {
     this.auctionState.set('login');
   }
-
     async startAuction() {
     if (this.currentUser()?.role !== 'admin') return;
     this.auctionState.set('admin_view');
@@ -368,7 +364,6 @@ private async initData() {
     this.lastDraftAction.set(null);
     await this.updateRemoteAuctionState();
   }
-
    async createTeamOwner(
     teamName: string,
     ownerName: string,
@@ -430,8 +425,6 @@ private async initData() {
       this.errorMessage.set('Saved locally but failed to sync with server.');
     }
   }
-
-
   updateTeamOwner(
     teamId: number,
     updatedData: {
@@ -566,7 +559,6 @@ private async initData() {
     this.errorMessage.set('Player removed locally, but failed to sync with server.');
   }
 }
-
   async resetAuction() {
     if (this.currentUser()?.role !== 'admin') return;
   

@@ -105,8 +105,8 @@ private buildExportRows(scope: 'all' | 'mine'): { team: string; owner: string; p
     });
   }
   // Form signals for login
-  loginUsername = signal('');
-  loginPassword = signal('');
+    loginUsername = '';
+    loginPassword = '';
   
   // Form signals for creating a new team
   newTeamName = signal('');
@@ -152,7 +152,7 @@ private buildExportRows(scope: 'all' | 'mine'): { team: string; owner: string; p
   }
   
   onLogin() {
-    this.auctionService.login(this.loginUsername(), this.loginPassword());
+    this.auctionService.login(this.loginUsername, this.loginPassword);
   }
 
   onEnterPublicView() {
