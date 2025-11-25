@@ -48,6 +48,9 @@ export class AuctionService {
   // Undo functionality
   lastDraftAction = signal<{ player: Player; teamId: number } | null>(null);
 
+  // Auction global phase (shared across devices)
+  auctionPhase = signal<'lobby' | 'running' | 'ended'>('lobby');
+
   // Computed Signals
   isRoundCompleted = computed(() => {
     const order = this.roundOrder();
@@ -187,7 +190,7 @@ export class AuctionService {
     }
   }
 
-  // ---------- REALTIME AUCTION STATE (ROUND, ORDER, TURN) ----------
+  // ---------- REALTIME AUCTION STATE (ROUND, ORDER, TURN, PHASE) ----------
 
   private initAuctionStateSync() {
     const db = this.firebase.db;
@@ -202,6 +205,7 @@ export class AuctionService {
           turnIndex: 0,
           isRolling: false,
           diceResultTeamId: null,
+          phase: 'lobby',         // new
         });
         return;
       }
@@ -230,6 +234,9 @@ export class AuctionService {
     } else {
       this.diceResult.set(null);
     }
+
+    // phase sync
+    this.auctionPhase.set((data.phase as any) ?? 'lobby');
   }
 
   private async updateRemoteAuctionState() {
@@ -245,6 +252,7 @@ export class AuctionService {
       turnIndex: this.turnIndex(),
       isRolling: this.isRolling(),
       diceResultTeamId: diceTeamId,
+      phase: this.auctionPhase(),    // new
     });
   }
 
@@ -304,11 +312,21 @@ export class AuctionService {
     );
     if (user) {
       this.currentUser.set(user);
+
       if (user.role === 'admin') {
-        this.auctionState.set('admin_lobby');
+        const phase = this.auctionPhase();
+
+        if (phase === 'running') {
+          this.auctionState.set('admin_view');       // चालू auction resume
+        } else if (phase === 'ended') {
+          this.auctionState.set('auction_ended');    // result view
+        } else {
+          this.auctionState.set('admin_lobby');      // lobby
+        }
       } else {
         this.auctionState.set('team_view');
       }
+
       this.errorMessage.set(null);
     } else {
       this.errorMessage.set('Invalid username or password.');
@@ -340,6 +358,7 @@ export class AuctionService {
     this.diceResult.set(null);
     this.isRolling.set(false);
 
+    this.auctionPhase.set('running');
     await this.updateRemoteAuctionState();
   }
 
@@ -384,7 +403,6 @@ export class AuctionService {
     const pickingTeam = this.pickingTeam();
     if (!pickingTeam || !this.isMyTurn()) return;
 
-    // Local state – optional (Firestore snapshot तरी लगेच update करेल)
     this.availablePlayers.update((players) =>
       players.filter((p) => p.id !== player.id)
     );
@@ -400,7 +418,6 @@ export class AuctionService {
     this.lastDraftAction.set({ player, teamId: pickingTeam.id });
     this.turnIndex.update((index) => index + 1);
 
-    // Firestore मध्ये mark करा
     const db = this.firebase.db;
     try {
       const playerRef = doc(db, 'players', String(player.id));
@@ -424,6 +441,7 @@ export class AuctionService {
       this.availablePlayers().length === 0
     ) {
       this.auctionState.set('auction_ended');
+      this.auctionPhase.set('ended');
       await this.updateRemoteAuctionState();
       return;
     }
@@ -462,7 +480,6 @@ export class AuctionService {
     this.turnIndex.update((index) => index - 1);
     this.lastDraftAction.set(null);
 
-    // Firestore मधून draft clear
     const db = this.firebase.db;
     try {
       const playerRef = doc(db, 'players', String(player.id));
@@ -697,6 +714,7 @@ export class AuctionService {
     this.lastDraftAction.set(null);
 
     this.auctionState.set('admin_lobby');
+    this.auctionPhase.set('lobby');
 
     // Firestore मधून सगळ्या players चे draftedToTeamId clear
     const db = this.firebase.db;
@@ -724,6 +742,7 @@ export class AuctionService {
   async stopAuction() {
     if (this.currentUser()?.role !== 'admin') return;
     this.auctionState.set('auction_ended');
+    this.auctionPhase.set('ended');
     await this.updateRemoteAuctionState();
   }
 }
