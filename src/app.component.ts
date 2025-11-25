@@ -154,7 +154,9 @@ private buildExportRows(scope: 'all' | 'mine'): { team: string; owner: string; p
   onLogin() {
      this.auctionService.login(this.loginUsername, this.loginPassword);
   }
-
+closeDraftAnnouncement() {
+  this.auctionService.lastDraftedPlayerInfo.set(null);
+}
   onEnterPublicView() {
     this.auctionService.enterPublicView();
     setTimeout(() => lucide.createIcons(), 50);

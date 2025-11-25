@@ -442,6 +442,19 @@ export class AuctionService {
     });
 
     this.lastDraftAction.set({ player, teamId: pickingTeam.id });
+    this.lastDraftedPlayerInfo.set({ player, team: pickingTeam });
+    // ⏱ 4 सेकंदांनी auto hide करा
+  setTimeout(() => {
+    const current = this.lastDraftedPlayerInfo();
+    // हेच player/team अजून active असतील तरच null करा
+    if (
+      current &&
+      current.player.id === player.id &&
+      current.team.id === pickingTeam.id
+    ) {
+      this.lastDraftedPlayerInfo.set(null);
+    }
+  }, 4000);
     this.turnIndex.update((index) => index + 1);
 
     const db = this.firebase.db;
