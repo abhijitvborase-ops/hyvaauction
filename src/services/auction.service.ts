@@ -5,7 +5,7 @@ import { FirebaseService } from './firebase.service';
 import { collection, addDoc, getDocs, setDoc,
   doc,
   updateDoc,
-  deleteDoc, } from 'firebase/firestore';
+  deleteDoc,onSnapshot,} from 'firebase/firestore';
 
 export type AuctionState = 'login' | 'public_view' | 'admin_lobby' | 'admin_view' | 'team_view' | 'auction_ended';
 
@@ -67,9 +67,13 @@ export class AuctionService {
 
   constructor(private firebase: FirebaseService) {
     this.seedData();
+    this.initData();
     this.loadDataFromFirestore();  // Firestore मधून teams/users load
   }
-
+private async initData() {
+    await this.loadDataFromFirestore();   // teams/users/players load
+    this.initAuctionStateSync();          // मग shared auction state subscribe
+  }
   private seedData() {
     this.masterPlayerList.set([...DEFAULT_PLAYERS]);
     this.availablePlayers.set([...this.masterPlayerList()]);
@@ -84,6 +88,66 @@ export class AuctionService {
     ];
     this.users.set(initialUsers);    
   }
+    private initAuctionStateSync() {
+    const db = this.firebase.db;
+    const stateRef = doc(db, 'auction', 'state');
+
+    onSnapshot(stateRef, async (snap) => {
+      if (!snap.exists()) {
+        // पहिल्यांदा app चालू झालं तर default state तयार करा
+        await setDoc(stateRef, {
+          currentRound: 1,
+          roundOrderTeamIds: [],
+          turnIndex: 0,
+          isRolling: false,
+          diceResultTeamId: null,
+        });
+        return;
+      }
+
+      const data = snap.data() as any;
+      this.applyRemoteAuctionState(data);
+    });
+  }
+  private applyRemoteAuctionState(data: any) {
+    // 1) basic fields
+    this.currentRound.set(data.currentRound ?? 1);
+    this.turnIndex.set(data.turnIndex ?? 0);
+    this.isRolling.set(!!data.isRolling);
+
+    const teams = this.teams();
+
+    // 2) roundOrder (team IDs → Team[] मध्ये convert)
+    const roundOrderIds: number[] = data.roundOrderTeamIds ?? [];
+    const roundOrderTeams = roundOrderIds
+      .map((id) => teams.find((t) => t.id === id) || null)
+      .filter((t): t is Team => t !== null);
+    this.roundOrder.set(roundOrderTeams);
+
+    // 3) diceResult
+    if (data.diceResultTeamId != null) {
+      const team = teams.find((t) => t.id === data.diceResultTeamId) ?? null;
+      this.diceResult.set(team);
+    } else {
+      this.diceResult.set(null);
+    }
+  }
+  private async updateRemoteAuctionState() {
+    const db = this.firebase.db;
+    const stateRef = doc(db, 'auction', 'state');
+
+    const roundOrderTeamIds = this.roundOrder().map((t) => t.id);
+    const diceTeamId = this.diceResult()?.id ?? null;
+
+    await updateDoc(stateRef, {
+      currentRound: this.currentRound(),
+      roundOrderTeamIds,
+      turnIndex: this.turnIndex(),
+      isRolling: this.isRolling(),
+      diceResultTeamId: diceTeamId,
+    });
+  }
+
   private async loadDataFromFirestore() {
     const db = this.firebase.db;
 
@@ -175,78 +239,107 @@ export class AuctionService {
     this.auctionState.set('login');
   }
 
-  startAuction() {
+    async startAuction() {
     if (this.currentUser()?.role !== 'admin') return;
     this.auctionState.set('admin_view');
+
+    // round, order, turn reset करून remote ला sync
+    this.currentRound.set(1);
+    this.roundOrder.set([]);
+    this.turnIndex.set(0);
+    this.diceResult.set(null);
+    this.isRolling.set(false);
+
+    await this.updateRemoteAuctionState();
   }
 
-  rollForNextPick() {
+    async rollForNextPick() {
     const teamsInRound = this.roundOrder();
     const allTeams = this.teams();
 
-    if (this.isRolling() || teamsInRound.length >= allTeams.length || teamsInRound.length >= this.TEAMS_PER_ROUND) {
+    if (
+      this.isRolling() ||
+      teamsInRound.length >= allTeams.length ||
+      teamsInRound.length >= this.TEAMS_PER_ROUND
+    ) {
       return;
     }
 
     this.isRolling.set(true);
+    await this.updateRemoteAuctionState(); // rolling सुरू झालं हे पण share कर
 
-    const availableToPick = allTeams.filter(t => !teamsInRound.find(inRound => inRound.id === t.id));
+    const availableToPick = allTeams.filter(
+      (t) => !teamsInRound.find((inRound) => inRound.id === t.id)
+    );
     if (availableToPick.length === 0) {
-        this.isRolling.set(false);
-        return;
+      this.isRolling.set(false);
+      await this.updateRemoteAuctionState();
+      return;
     }
 
-    const pickedTeam = availableToPick[Math.floor(Math.random() * availableToPick.length)];
+    const pickedTeam =
+      availableToPick[Math.floor(Math.random() * availableToPick.length)];
 
     this.diceResult.set(pickedTeam);
+    await this.updateRemoteAuctionState();
 
-    setTimeout(() => {
-      this.roundOrder.update(order => [...order, pickedTeam]);
+    setTimeout(async () => {
+      this.roundOrder.update((order) => [...order, pickedTeam]);
       this.isRolling.set(false);
-    }, 2500); // Corresponds to animation duration + delay
+      await this.updateRemoteAuctionState();
+    }, 2500);
   }
-
-  draftPlayer(player: Player) {
+    async draftPlayer(player: Player) {
     const pickingTeam = this.pickingTeam();
     if (!pickingTeam || !this.isMyTurn()) return;
 
-    // Remove from available players
-    this.availablePlayers.update(players => players.filter(p => p.id !== player.id));
+    // Remove from available players (local)
+    this.availablePlayers.update((players) =>
+      players.filter((p) => p.id !== player.id)
+    );
 
-    // Add to team
-    this.teams.update(teams => {
-      const teamIndex = teams.findIndex(t => t.id === pickingTeam.id);
+    // Add to team (local)
+    this.teams.update((teams) => {
+      const teamIndex = teams.findIndex((t) => t.id === pickingTeam.id);
       if (teamIndex > -1) {
         teams[teamIndex].players.push(player);
       }
       return [...teams];
     });
-    
-    // Set the last draft action for potential undo
+
+    // last draft
     this.lastDraftAction.set({ player, teamId: pickingTeam.id });
 
-    // Move to next turn in the round
-    this.turnIndex.update(index => index + 1);
+    // Move to next turn
+    this.turnIndex.update((index) => index + 1);
+
+    await this.updateRemoteAuctionState();
   }
 
-  nextRound() {
+  async nextRound() {
     if (!this.isRoundCompleted()) return;
 
     const nextRoundNumber = this.currentRound() + 1;
-    
-    if (nextRoundNumber > this.MAX_ROUNDS || this.availablePlayers().length === 0) {
+
+    if (
+      nextRoundNumber > this.MAX_ROUNDS ||
+      this.availablePlayers().length === 0
+    ) {
       this.auctionState.set('auction_ended');
+      await this.updateRemoteAuctionState();
       return;
     }
 
     this.currentRound.set(nextRoundNumber);
     this.roundOrder.set([]);
     this.turnIndex.set(0);
-    this.diceResult.set(null); // Reset dice for next round
-    this.lastDraftAction.set(null); // Clear undo state for new round
+    this.diceResult.set(null);
+    this.lastDraftAction.set(null);
+
+    await this.updateRemoteAuctionState();
   }
 
-  undoLastDraft() {
+  async undoLastDraft() {
     if (this.currentUser()?.role !== 'admin') return;
 
     const lastAction = this.lastDraftAction();
@@ -273,6 +366,7 @@ export class AuctionService {
     
     // Clear the last action so it can't be undone again
     this.lastDraftAction.set(null);
+    await this.updateRemoteAuctionState();
   }
 
    async createTeamOwner(
@@ -473,7 +567,7 @@ export class AuctionService {
   }
 }
 
-  resetAuction() {
+  async resetAuction() {
     if (this.currentUser()?.role !== 'admin') return;
   
     // Reset each team's roster to be empty
@@ -495,10 +589,12 @@ export class AuctionService {
     
     // Return admin to the lobby to start a new auction
     this.auctionState.set('admin_lobby');
+    await this.updateRemoteAuctionState();
   }
 
-  stopAuction() {
+  async stopAuction() {
     if (this.currentUser()?.role !== 'admin') return;
     this.auctionState.set('auction_ended');
+    await this.updateRemoteAuctionState();
   }
 }
