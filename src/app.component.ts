@@ -202,8 +202,24 @@ closeDraftAnnouncement() {
 
 
   onUndoLastDraft() {
-    this.auctionService.undoLastDraft();
+  // जर काहीच undo करायला नसेल तर काही करू नको
+  if (!this.auctionService.canUndo()) {
+    return;
   }
+
+  const ok = confirm(
+    'Are you sure you want to undo the last pick?\n\n' +
+    '➤ The player will return to the Available Players list.\n' +
+    '➤ The previous team will get its turn again.'
+  );
+
+  if (!ok) {
+    return;
+  }
+
+  this.auctionService.undoLastDraft();
+  setTimeout(() => lucide.createIcons(), 50);
+}
 
   onCreateTeam() {
     if (this.newTeamName() && this.newOwnerName() && this.newUsername() && this.newPassword()) {
