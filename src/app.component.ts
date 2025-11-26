@@ -181,10 +181,25 @@ closeDraftAnnouncement() {
     setTimeout(() => lucide.createIcons(), 50);
   }
 
-  onDraftPlayer(player: Player) {
-    this.auctionService.draftPlayer(player);
-    setTimeout(() => lucide.createIcons(), 50);
+  async onDraftPlayer(player: Player) {
+  // Safe check – माझाच turn आहे का ते
+  if (!this.auctionService.isMyTurn()) {
+    return;
   }
+
+  const ok = window.confirm(
+    `Are you sure you want to draft "${player.name}" for your team?`
+  );
+
+  if (!ok) {
+    // User ने "Cancel / No" निवडलं
+    return;
+  }
+
+  // User ने Yes केलं → actual draft call
+  await this.auctionService.draftPlayer(player);
+}
+
 
   onUndoLastDraft() {
     this.auctionService.undoLastDraft();
