@@ -16,6 +16,7 @@ export type AuctionState =
   | 'login'
   | 'public_view'
   | 'admin_lobby'
+  | 'admin_setup'
   | 'admin_view'
   | 'team_view'
   | 'auction_ended';
@@ -404,6 +405,17 @@ export class AuctionService {
 
   returnToLogin() {
     this.auctionState.set('login');
+  }
+
+  // Admin view navigation
+  goToAdminLobby() {
+    if (this.currentUser()?.role !== 'admin') return;
+    this.auctionState.set('admin_lobby');
+  }
+
+  goToAdminSetup() {
+    if (this.currentUser()?.role !== 'admin') return;
+    this.auctionState.set('admin_setup');
   }
 
   // ---------- AUCTION FLOW ----------
@@ -853,3 +865,4 @@ export class AuctionService {
     });
   }
 }
+

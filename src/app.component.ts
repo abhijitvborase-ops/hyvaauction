@@ -27,6 +27,8 @@ export class AppComponent implements OnInit {
     firebase = inject(FirebaseService);
     @ViewChild('exportTable') exportTable!: ElementRef;
 
+    adminTab = signal<'create' | 'manage'>('create');
+
 private buildExportRows(scope: 'all' | 'mine'): { team: string; owner: string; player: string; role: string }[] {
     const teams = this.auctionService.teams();
     const currentUser = this.auctionService.currentUser();
