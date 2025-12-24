@@ -1,6 +1,7 @@
 import { Injectable, signal, computed, WritableSignal } from '@angular/core';
 import { Player, Team, User } from '../models';
 import { FirebaseService } from './firebase.service';
+import { query, where } from 'firebase/firestore';
 import {
   collection,
   addDoc,
@@ -143,6 +144,8 @@ export class AuctionService {
 
       usersSnap.forEach((docSnap) => {
         const data = docSnap.data() as any;
+        if (data.isActive === false) return;
+        
         loadedUsers.push({
           id: data.userId,
           username: data.username,
@@ -654,6 +657,7 @@ export class AuctionService {
         password,
         role: 'team_owner',
         teamId: newTeamId,
+        isActive: true,
       });
     } catch (err) {
       console.error('Error saving team owner to Firestore', err);
@@ -699,21 +703,35 @@ export class AuctionService {
     });
   }
 
-  deleteTeamOwner(teamId: number) {
-    if (this.currentUser()?.role !== 'admin') return;
+async deleteTeamOwner(teamId: number) {
+  if (this.currentUser()?.role !== 'admin') return;
 
-    const teamToDelete = this.teams().find((t) => t.id === teamId);
-    if (teamToDelete) {
-      const playersToReturn = teamToDelete.players;
-      const sortFn = (a: Player, b: Player) => a.name.localeCompare(b.name);
-      this.availablePlayers.update((current) =>
-        [...current, ...playersToReturn].sort(sortFn)
-      );
-    }
+  const db = this.firebase.db;
 
-    this.teams.update((teams) => teams.filter((t) => t.id !== teamId));
-    this.users.update((users) => users.filter((u) => u.teamId !== teamId));
-  }
+  // 1️⃣ USERS collection → soft delete
+  const userSnap = await getDocs(
+    query(collection(db, 'users'), where('teamId', '==', Number(teamId)))
+  );
+
+  userSnap.forEach(docSnap => {
+    updateDoc(doc(db, 'users', docSnap.id), {
+      isActive: false,
+    });
+  });
+
+  // 2️⃣ TEAMS collection → hard delete
+  const teamSnap = await getDocs(
+    query(collection(db, 'teams'), where('teamId', '==', Number(teamId)))
+  );
+
+  teamSnap.forEach(docSnap => {
+    deleteDoc(doc(db, 'teams', docSnap.id));
+  });
+
+  // 3️⃣ LOCAL state update (UI साठी)
+  this.teams.update(teams => teams.filter(t => t.id !== teamId));
+  this.users.update(users => users.filter(u => u.teamId !== teamId));
+}
 
   // ---------- PLAYERS (ADMIN) ----------
 
