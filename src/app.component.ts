@@ -132,6 +132,10 @@ getCaptainRoleColor(role: 'Staff' | 'Technician'): string {
   this.auctionService.stopAuction();
   setTimeout(() => lucide.createIcons(), 50);
 }
+onResetAuction() {
+  this.auctionService.resetAuction();
+  setTimeout(() => lucide.createIcons(), 50);
+}
   onRollForNextPick() {
     this.auctionService.rollForNextPick();
   }
