@@ -145,13 +145,68 @@ onResetAuction() {
     setTimeout(() => lucide.createIcons(), 50);
   }
 exportDraftToExcelAll() {
-  console.log('Export All Teams (Excel)');
+  const rows: any[] = [];
+
+  this.auctionService.teams().forEach(team => {
+    if (team.players.length === 0) {
+      rows.push({
+        Team: team.name,
+        Player: '—',
+        Role: '—',
+        CaptainRole: team.captainRole,
+      });
+    } else {
+      team.players.forEach(player => {
+        rows.push({
+          Team: team.name,
+          Player: player.name,
+          Role: player.role,
+          CaptainRole: team.captainRole,
+        });
+      });
+    }
+  });
+
+  const worksheet = XLSX.utils.json_to_sheet(rows);
+  const workbook = XLSX.utils.book_new();
+
+  XLSX.utils.book_append_sheet(workbook, worksheet, 'Final Teams');
+
+  XLSX.writeFile(workbook, 'Hyva_Auction_Final_Teams.xlsx');
 }
 exportDraftToExcelMine() {
-  console.log('Export My Team (Excel)');
+  const user = this.auctionService.currentUser();
+  if (!user?.teamId) return;
+
+  const team = this.auctionService.teams().find(t => t.id === user.teamId);
+  if (!team) return;
+
+  const rows = team.players.map(player => ({
+    Team: team.name,
+    Player: player.name,
+    Role: player.role,
+    CaptainRole: team.captainRole,
+  }));
+
+  const worksheet = XLSX.utils.json_to_sheet(rows);
+  const workbook = XLSX.utils.book_new();
+
+  XLSX.utils.book_append_sheet(workbook, worksheet, team.name);
+
+  XLSX.writeFile(workbook, `${team.name}_Team.xlsx`);
 }
-exportDraftToPng() {
-  console.log('Export as PNG');
+async exportDraftToPng() {
+  if (!this.exportTable) return;
+
+  const canvas = await html2canvas(this.exportTable.nativeElement, {
+    backgroundColor: '#111827', // bg-gray-900
+    scale: 2,
+  });
+
+  const link = document.createElement('a');
+  link.download = 'Hyva_Auction_Final_Teams.png';
+  link.href = canvas.toDataURL('image/png');
+  link.click();
 }
 
   async onDraftPlayer(player: Player) {
