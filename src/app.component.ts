@@ -144,6 +144,15 @@ onResetAuction() {
     this.auctionService.nextRound();
     setTimeout(() => lucide.createIcons(), 50);
   }
+exportDraftToExcelAll() {
+  console.log('Export All Teams (Excel)');
+}
+exportDraftToExcelMine() {
+  console.log('Export My Team (Excel)');
+}
+exportDraftToPng() {
+  console.log('Export as PNG');
+}
 
   async onDraftPlayer(player: Player) {
     if (!this.auctionService.isMyTurn()) return;
@@ -303,4 +312,15 @@ onResetAuction() {
         return 'text-gray-400';
     }
   }
+  getTextColor(bgClass: string): string {
+  if (!bgClass) return 'text-white';
+
+  if (bgClass.includes('bg-blue')) return 'text-blue-100';
+  if (bgClass.includes('bg-yellow')) return 'text-yellow-100';
+  if (bgClass.includes('bg-green')) return 'text-green-100';
+  if (bgClass.includes('bg-red')) return 'text-red-100';
+  if (bgClass.includes('bg-purple')) return 'text-purple-100';
+
+  return 'text-white';
+}
 }
